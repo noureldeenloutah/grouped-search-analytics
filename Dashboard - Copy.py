@@ -575,9 +575,9 @@ with tab_overview:
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("🏷 Brand data ready from sheet.")
-    with colB:
+    with g2:
         if 'Category' in queries.columns:
-            cat_perf = queries.groupby('Category').agg({'Counts':'sum', 'conversions': lambda x: int((queries.loc[queries['Category']==g, 'count'] * queries['Converion Rate']).sum()) for g in queries['Category'].unique()}).reset_index()
+            cat_perf = queries.groupby('Category').agg({'Counts':'sum', 'count':'sum', 'Converion Rate':'mean'}).reset_index()
             cat_perf['conversions'] = (cat_perf['count'] * cat_perf['Converion Rate']).round()
             cat_perf['share'] = (cat_perf['Counts'] / total_counts * 100).round(2)
             st.markdown("**Top Categories by Counts**")
