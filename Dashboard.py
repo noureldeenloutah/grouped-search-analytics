@@ -23,7 +23,7 @@ except Exception:
     WORDCLOUD_OK = False
 
 # ----------------- Page config -----------------
-st.set_page_config(page_title="🔥 Lady Care — Search Analytics", layout="wide", page_icon="✨")
+st.set_page_config(page_title="🔥 Lady Care — Ultimate Search Analytics", layout="wide", page_icon="✨")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -215,10 +215,19 @@ def prepare_queries_df(df: pd.DataFrame):
         else:
             df['normalized_query'] = df.iloc[:,0].astype(str)
 
-    # Ensure start_date/end_date exist if present as serials
-    for c in ['start_date','end_date','Date','date']:
+    # Ensure start_date/end_date exist and handle date parsing
+    for c in ['start_date', 'end_date', 'Date', 'date']:
         if c in df.columns:
-            df['Date'] = pd.to_datetime(df[c], errors='coerce', unit='D', origin='1899-12-30')
+            # Check if the column is already datetime
+            if pd.api.types.is_datetime64_any_dtype(df[c]):
+                df['Date'] = df[c]
+            else:
+                # Check if the column is numeric (Excel serial dates)
+                if pd.to_numeric(df[c], errors='coerce').notna().any():
+                    df['Date'] = pd.to_datetime(df[c], errors='coerce', unit='D', origin='1899-12-30')
+                else:
+                    # Assume standard date strings (e.g., YYYY-MM-DD)
+                    df['Date'] = pd.to_datetime(df[c], errors='coerce')
             break
     if 'Date' not in df.columns:
         df['Date'] = pd.NaT
