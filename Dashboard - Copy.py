@@ -479,31 +479,38 @@ with tab_overview:
         st.rerun()
 
     # Hero Image (Creative UI)
-    st.image("https://via.placeholder.com/1200x250/FFEFEF/FF5A6E?text=✨+Lady+Care+Glow-Up+Insights+(Sep+17,+2025)", use_column_width=True)
+    st.image("https://via.placeholder.com/1200x250/FFEFEF/FF5A6E?text=✨+Lady+Care+Glow-Up+Insights+(Sep+17,+2025)", use_container_width=True)
 
-    colA, colB = st.columns([2,1])
+    colA, colB = st.columns([2, 1])
     with colA:
-        # Trend Line (Accuracy: Handle empty)
-        counts_trend = queries.groupby('Date')['Counts'].sum().reset_index()
-        if not counts_trend.empty and len(counts_trend) > 1:
-            fig = px.line(counts_trend, x='Date', y='Counts', title='Counts over Time (2025 Trends)', 
-                          labels={'Counts':'Search Counts'}, color_discrete_sequence=px.colors.qualitative.D3)
-            fig.update_xaxes(title="Date (Serial to Datetime Fixed)")
-            st.plotly_chart(fig, use_container_width=True)
+        # Counts over Months as three PX lines
+        monthly_counts = queries.groupby(queries['Date'].dt.strftime('%b %Y'))['Counts'].sum().reset_index()
+        if not monthly_counts.empty and len(monthly_counts) >= 3:
+            months = monthly_counts['Date'].head(3).tolist()
+            fig1 = px.line(monthly_counts[monthly_counts['Date'] == months[0]], x='Date', y='Counts', title=f'Counts for {months[0]}',
+                           labels={'Counts': 'Search Counts'}, color_discrete_sequence=px.colors.qualitative.D3)
+            fig2 = px.line(monthly_counts[monthly_counts['Date'] == months[1]], x='Date', y='Counts', title=f'Counts for {months[1]}',
+                           labels={'Counts': 'Search Counts'}, color_discrete_sequence=px.colors.qualitative.D3)
+            fig3 = px.line(monthly_counts[monthly_counts['Date'] == months[2]], x='Date', y='Counts', title=f'Counts for {months[2]}',
+                           labels={'Counts': 'Search Counts'}, color_discrete_sequence=px.colors.qualitative.D3)
+            st.plotly_chart(fig1, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig3, use_container_width=True)
         else:
-            st.info("📅 Add more date range for trends. Sample: Q4 2025 shows INTIMATE CARE spike.")
+            st.info("📅 Add more date range for monthly trends. Sample: Q4 2025 shows INTIMATE CARE spike.")
+
     with colB:
-        st.markdown("**Top 10 Queries (Counts)**")
+        st.markdown("**Top 50 Queries (Counts)**")
         if queries.empty or 'Counts' not in queries.columns or queries['Counts'].isna().all():
-            st.warning("No valid data available for top 10 queries.")
+            st.warning("No valid data available for top 50 queries.")
         else:
             try:
-                top10 = queries.nlargest(10, 'Counts')[['search', 'Counts', 'clicks', 'Converion Rate']].rename(columns={'search':'Query', 'Counts':'Search Counts'})
-                st.dataframe(top10, use_container_width=True, help="From queries_clustered: High-vol like 'feminine wash' (1,642 Counts).")
+                top50 = queries.nlargest(50, 'Counts')[['search', 'Counts', 'clicks', 'Converion Rate']].rename(columns={'search': 'Query', 'Counts': 'Search Counts'})
+                st.dataframe(top50, use_container_width=True)
             except KeyError as e:
                 st.error(f"Column error: {e}. Check column names in your data.")
             except Exception as e:
-                st.error(f"Error processing top 10 queries: {e}")
+                st.error(f"Error processing top 50 queries: {e}")
 
     st.markdown("---")
     st.subheader("📊 Performance Snapshot")
@@ -582,27 +589,30 @@ with tab_overview:
     g1, g2 = st.columns(2)
     with g1:
         if 'Brand' in queries.columns:
-            brand_perf = queries.groupby('Brand').agg({'Counts':'sum', 'clicks':'sum', 'Converion Rate':'mean'}).reset_index()
+            brand_perf = queries[queries['Brand'] != 'Other'].groupby('Brand').agg({'Counts': 'sum', 'clicks': 'sum', 'Converion Rate': 'mean'}).reset_index()
             brand_perf['conversions'] = (brand_perf['clicks'] * brand_perf['Converion Rate']).round()
             brand_perf['share'] = (brand_perf['Counts'] / total_counts * 100).round(2)
             fig = px.bar(brand_perf.sort_values('Counts', ascending=False).head(10), 
-                         x='Brand', y='Counts', title='Top Brands by Counts (e.g., Sofy Leads @614k Full)',
+                         x='Brand', y='Counts', title='Top Brands by Counts (e.g., Sofy Leads @614,606 Full)',
                          color='conversions', color_continuous_scale='Viridis', hover_data=['share'])
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("🏷 Brand data ready from sheet.")
     with g2:
         if 'Category' in queries.columns:
-            cat_perf = queries.groupby('Category').agg({'Counts':'sum', 'clicks':'sum', 'Converion Rate':'mean'}).reset_index()
+            cat_perf = queries.groupby('Category').agg({'Counts': 'sum', 'clicks': 'sum', 'Converion Rate': 'mean'}).reset_index()
             cat_perf['conversions'] = (cat_perf['clicks'] * cat_perf['Converion Rate']).round()
             cat_perf['share'] = (cat_perf['Counts'] / total_counts * 100).round(2)
+            cat_perf['cr'] = (cat_perf['conversions'] / cat_perf['clicks'] * 100).round(2) if cat_perf['clicks'].sum() > 0 else 0
             st.markdown("**Top Categories by Counts**")
             if AGGRID_OK:
                 AgGrid(cat_perf.sort_values('Counts', ascending=False).head(10), height=300, enable_enterprise_modules=False)
             else:
-                st.dataframe(cat_perf, use_container_width=True)
+                st.dataframe(cat_perf[['Category', 'Counts', 'clicks', 'conversions', 'cr', 'share']].head(10).style.format({
+                    'Counts': '{:,.0f}', 'clicks': '{:,.0f}', 'conversions': '{:,.0f}', 'cr': '{:.2f}%', 'share': '{:.2f}%'
+                }), use_container_width=True)
         else:
-            st.info("📦 Category data parsed (e.g., SANITARY CARE: 6M+ Counts).")
+            st.info("📦 Category data parsed (e.g., SANITARY CARE: 6,000,606+ Counts).")
 
 # ----------------- Search Analysis (core) -----------------
 with tab_search:
