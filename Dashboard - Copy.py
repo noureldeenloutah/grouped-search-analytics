@@ -479,23 +479,40 @@ with tab_overview:
         st.rerun()
 
     # Hero Image (Creative UI)
-    st.image("https://via.placeholder.com/1200x250/FFEFEF/FF5A6E?text=✨+Lady+Care+Glow-Up+Insights+(Sep+17,+2025)", use_container_width=True)
+    st.image("https://picsum.photos/1200/250?random=lady_care_insights", use_container_width=True)
 
     colA, colB = st.columns([2, 1])
     with colA:
-        # Counts over Months as three PX lines
+        # Counts over Months as a single creative comparison chart
         monthly_counts = queries.groupby(queries['Date'].dt.strftime('%b %Y'))['Counts'].sum().reset_index()
-        if not monthly_counts.empty and len(monthly_counts) >= 3:
-            months = monthly_counts['Date'].head(3).tolist()
-            fig1 = px.line(monthly_counts[monthly_counts['Date'] == months[0]], x='Date', y='Counts', title=f'Counts for {months[0]}',
-                           labels={'Counts': 'Search Counts'}, color_discrete_sequence=px.colors.qualitative.D3)
-            fig2 = px.line(monthly_counts[monthly_counts['Date'] == months[1]], x='Date', y='Counts', title=f'Counts for {months[1]}',
-                           labels={'Counts': 'Search Counts'}, color_discrete_sequence=px.colors.qualitative.D3)
-            fig3 = px.line(monthly_counts[monthly_counts['Date'] == months[2]], x='Date', y='Counts', title=f'Counts for {months[2]}',
-                           labels={'Counts': 'Search Counts'}, color_discrete_sequence=px.colors.qualitative.D3)
-            st.plotly_chart(fig1, use_container_width=True)
-            st.plotly_chart(fig2, use_container_width=True)
-            st.plotly_chart(fig3, use_container_width=True)
+        if not monthly_counts.empty and len(monthly_counts) >= 2:
+            fig = px.area(monthly_counts, x='Date', y='Counts', title='<b style="color:#FF5A6E; text-shadow: 2px 2px 4px #00000055;">Counts Over Months: 2025 Trends Unleashed! 🌟</b>',
+                          labels={'Date': 'Month', 'Counts': 'Search Counts'},
+                          color_discrete_sequence=['#FF5A6E', '#FFB085', '#E6F3FA'],
+                          template='plotly_dark')
+            fig.update_traces(fill='tonexty', mode='lines+markers', line=dict(width=2), marker=dict(size=8))
+            fig.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#FFFFFF'),
+                title_x=0.5,
+                xaxis_title="<i>Time Journey</i>",
+                yaxis_title="<b>Search Volume</b>",
+                annotations=[
+                    dict(
+                        x=monthly_counts['Date'].iloc[-1],
+                        y=monthly_counts['Counts'].iloc[-1],
+                        xref="x", yref="y",
+                        text=f"Peak: {monthly_counts['Counts'].max():,.0f}",
+                        showarrow=True,
+                        arrowhead=2,
+                        ax=20,
+                        ay=-30,
+                        font=dict(size=12, color="#FF5A6E")
+                    )
+                ]
+            )
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("📅 Add more date range for monthly trends. Sample: Q4 2025 shows INTIMATE CARE spike.")
 
@@ -612,7 +629,7 @@ with tab_overview:
                     'Counts': '{:,.0f}', 'clicks': '{:,.0f}', 'conversions': '{:,.0f}', 'cr': '{:.2f}%', 'share': '{:.2f}%'
                 }), use_container_width=True)
         else:
-            st.info("📦 Category data parsed (e.g., SANITARY CARE: 6,000,606+ Counts).")
+            st.info("📦 Category data parsed (e.g., SANITARY CARE).")
 
 # ----------------- Search Analysis (core) -----------------
 with tab_search:
