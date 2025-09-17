@@ -494,8 +494,16 @@ with tab_overview:
             st.info("📅 Add more date range for trends. Sample: Q4 2025 shows INTIMATE CARE spike.")
     with colB:
         st.markdown("**Top 10 Queries (Counts)**")
-        top10 = queries.nlargest(10, 'Counts')[['search', 'Counts', 'clicks', 'Converion Rate']].rename(columns={'search':'Query', 'Counts':'Search Counts'})
-        st.dataframe(top10, use_container_width=True, help="From queries_clustered: High-vol like 'feminine wash' (1,642 Counts).")
+        if queries.empty or 'Counts' not in queries.columns or queries['Counts'].isna().all():
+            st.warning("No valid data available for top 10 queries.")
+        else:
+            try:
+                top10 = queries.nlargest(10, 'Counts')[['search', 'Counts', 'clicks', 'Converion Rate']].rename(columns={'search':'Query', 'Counts':'Search Counts'})
+                st.dataframe(top10, use_container_width=True, help="From queries_clustered: High-vol like 'feminine wash' (1,642 Counts).")
+            except KeyError as e:
+                st.error(f"Column error: {e}. Check column names in your data.")
+            except Exception as e:
+                st.error(f"Error processing top 10 queries: {e}")
 
     st.markdown("---")
     st.subheader("📊 Performance Snapshot")
