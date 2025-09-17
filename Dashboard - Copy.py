@@ -478,8 +478,19 @@ with tab_overview:
     if st.button("🔄 Refresh Filters & Data"):
         st.rerun()
 
-    # Hero Image (Creative UI)
-    st.image("https://picsum.photos/1200/250?random=lady_care_insights", use_container_width=True)
+    # Image Selection in Sidebar
+    st.sidebar.header("🎨 Customize Hero Image")
+    image_options = {
+        "Abstract Gradient": "https://placehold.co/1200x250/FF5A6E/FFFFFF?text=✨+Lady+Care+Insights",
+        "Nature-Inspired": "https://picsum.photos/1200/250?random=care_nature",
+        "Elegant Pink Theme": "https://source.unsplash.com/1200x250/?pink,elegant",
+        "Custom Text on Solid Color": "https://placehold.co/1200x250/E6F3FA/FF5A6E?text=✨+Lady+Care+Glow",
+        "Feminine Floral": "https://picsum.photos/1200/250?random=floral_feminine"
+    }
+    selected_image = st.sidebar.selectbox("Choose Hero Image", options=list(image_options.keys()), index=0)
+
+    # Hero Image (Creative UI) with selected option
+    st.image(image_options[selected_image], use_container_width=True)
 
     colA, colB = st.columns([2, 1])
     with colA:
