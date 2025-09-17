@@ -511,7 +511,15 @@ with tab_overview:
     # Enhanced KPIs with st.metric (Animated, Tooltips)
     total_counts = int(queries['Counts'].sum()) if not queries['Counts'].empty else 0
     total_clicks = int(queries['clicks'].sum()) if not queries['clicks'].empty else 0
-    total_conv_safe = int((queries['clicks'] * queries['Converion Rate']).sum().fillna(0))
+
+    # Ensure columns are numeric and handle missing data
+    if 'Converion Rate' in queries.columns:
+        queries['Converion Rate'] = pd.to_numeric(queries['Converion Rate'], errors='coerce').fillna(0)
+        total_conv_safe = int((queries['clicks'] * queries['Converion Rate']).sum())
+    else:
+        st.warning("Column 'Converion Rate' not found. Using default conversions.")
+        total_conv_safe = int((queries['clicks'] * 0).sum())  # Default to 0 conversion rate if column is missing
+
     overall_ctr = (total_clicks / total_counts * 100) if total_counts > 0 else 0
     overall_cr = (total_conv_safe / total_clicks * 100) if total_clicks > 0 else 0
 
