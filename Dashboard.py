@@ -179,6 +179,42 @@ body {
     background: #FFFFFF;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
+/* Mini Metric Card */
+.mini-metric {
+    background: linear-gradient(90deg, #FF5A6E, #FFB085);
+    padding: 12px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100px; /* Fixed height for uniformity */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.mini-metric:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+.mini-metric .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin-bottom: 4px;
+}
+.mini-metric .label {
+    font-size: 0.9rem;
+    color: #F9FAFB;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.mini-metric .icon {
+    font-size: 1.2rem;
+    color: #FFFFFF;
+    margin-bottom: 6px;
+    display: block;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -429,7 +465,7 @@ tab_overview, tab_search, tab_brand, tab_category, tab_subcat, tab_generic, tab_
     "⏰ Time Analysis","📊 Pivot Builder","💡 Insights & Qs","⬇ Export"
 ])
 
-# ----------------- Overview (Modified) -----------------
+# ----------------- Overview -----------------
 with tab_overview:
     st.header("📈 Overview & Quick Wins")
     st.markdown("Quick visuals to spot trends and take immediate action. 🚀")
@@ -445,7 +481,7 @@ with tab_overview:
         st.markdown("**Top 10 Queries (Impressions)**")
         top10 = queries.groupby('normalized_query').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index().sort_values('impressions', ascending=False).head(10)
         st.dataframe(top10.rename(columns={'normalized_query':'Query'}), use_container_width=True)
-        
+
     st.markdown("---")
     st.subheader("📊 Performance Snapshot")
     
@@ -456,8 +492,9 @@ with tab_overview:
         avg_ctr = queries['ctr'].mean() if 'ctr' in queries.columns else 0
         st.markdown(f"""
         <div class='mini-metric'>
+            <span class='icon'>📊</span>
             <div class='value'>{avg_ctr:.2f}%</div>
-            <div class='label'>📊 Avg CTR</div>
+            <div class='label'>Avg CTR</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -465,8 +502,9 @@ with tab_overview:
         avg_cr = queries['cr'].mean() if 'cr' in queries.columns else 0
         st.markdown(f"""
         <div class='mini-metric'>
+            <span class='icon'>🎯</span>
             <div class='value'>{avg_cr:.2f}%</div>
-            <div class='label'>🎯 Avg CR</div>
+            <div class='label'>Avg CR</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -474,8 +512,9 @@ with tab_overview:
         unique_queries = queries['normalized_query'].nunique()
         st.markdown(f"""
         <div class='mini-metric'>
+            <span class='icon'>🔍</span>
             <div class='value'>{unique_queries:,}</div>
-            <div class='label'>🔍 Unique Queries</div>
+            <div class='label'>Unique Queries</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -483,12 +522,14 @@ with tab_overview:
         avg_query_len = queries['query_length'].mean() if 'query_length' in queries.columns else 0
         st.markdown(f"""
         <div class='mini-metric'>
+            <span class='icon'>📏</span>
             <div class='value'>{avg_query_len:.1f}</div>
-            <div class='label'>📏 Avg Query Length</div>
+            <div class='label'>Avg Query Length</div>
         </div>
         """, unsafe_allow_html=True)
+
     st.markdown("---")
-    st.subheader("🏷 Brand & Category Snapshot")  # Replaced Geography & Device Snapshot
+    st.subheader("🏷 Brand & Category Snapshot")
     g1, g2 = st.columns(2)
     with g1:
         if 'brand' in queries.columns and queries['brand'].notna().any():
