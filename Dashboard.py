@@ -445,7 +445,48 @@ with tab_overview:
         st.markdown("**Top 10 Queries (Impressions)**")
         top10 = queries.groupby('normalized_query').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index().sort_values('impressions', ascending=False).head(10)
         st.dataframe(top10.rename(columns={'normalized_query':'Query'}), use_container_width=True)
-
+        
+    st.markdown("---")
+    st.subheader("📊 Performance Snapshot")
+    
+    # Mini metrics row
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        avg_ctr = queries['ctr'].mean() if 'ctr' in queries.columns else 0
+        st.markdown(f"""
+        <div class='mini-metric'>
+            <div class='value'>{avg_ctr:.2f}%</div>
+            <div class='label'>📊 Avg CTR</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        avg_cr = queries['cr'].mean() if 'cr' in queries.columns else 0
+        st.markdown(f"""
+        <div class='mini-metric'>
+            <div class='value'>{avg_cr:.2f}%</div>
+            <div class='label'>🎯 Avg CR</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        unique_queries = queries['normalized_query'].nunique()
+        st.markdown(f"""
+        <div class='mini-metric'>
+            <div class='value'>{unique_queries:,}</div>
+            <div class='label'>🔍 Unique Queries</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        avg_query_len = queries['query_length'].mean() if 'query_length' in queries.columns else 0
+        st.markdown(f"""
+        <div class='mini-metric'>
+            <div class='value'>{avg_query_len:.1f}</div>
+            <div class='label'>📏 Avg Query Length</div>
+        </div>
+        """, unsafe_allow_html=True)
     st.markdown("---")
     st.subheader("🏷 Brand & Category Snapshot")  # Replaced Geography & Device Snapshot
     g1, g2 = st.columns(2)
