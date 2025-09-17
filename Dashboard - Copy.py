@@ -256,15 +256,15 @@ def prepare_queries_df(df: pd.DataFrame):
         if pd.api.types.is_datetime64_any_dtype(df['start_date']):
             df['Date'] = df['start_date']
         else:
-            df['Date'] = pd.to_datetime(df['start_date'], errors='coerce')
+            df['Date'] = pd.to_datetime(df['start_date'], unit='D', origin='1899-12-30', errors='coerce')
     else:
         df['Date'] = pd.NaT
 
-    # Impressions
+    # Counts (renamed from impressions)
     if 'total_impressions over 3m' in df.columns:
-        df['impressions'] = pd.to_numeric(df['total_impressions over 3m'], errors='coerce').fillna(0)
+        df['Counts'] = pd.to_numeric(df['total_impressions over 3m'], errors='coerce').fillna(0)
     else:
-        df['impressions'] = 0
+        df['Counts'] = 0
 
     # Clicks
     if 'count' in df.columns:
@@ -282,7 +282,7 @@ def prepare_queries_df(df: pd.DataFrame):
     if 'Click Through Rate' in df.columns:
         df['ctr'] = pd.to_numeric(df['Click Through Rate'], errors='coerce').fillna(0) * 100
     else:
-        df['ctr'] = df.apply(lambda r: r['clicks']/r['impressions'] if r['impressions']>0 else 0, axis=1) * 100
+        df['ctr'] = df.apply(lambda r: r['clicks']/r['Counts'] if r['Counts']>0 else 0, axis=1) * 100
     
     if 'Converion Rate' in df.columns:
         df['cr'] = pd.to_numeric(df['Converion Rate'], errors='coerce').fillna(0) * 100
@@ -440,16 +440,16 @@ st.markdown("""
 st.markdown('<div class="main-header">🔥 Lady Care — Ultimate Search Analytics</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Uncover powerful insights from the <b>search</b> column with vibrant visuals and actionable pivots</div>', unsafe_allow_html=True)
 
-total_impr = int(queries['impressions'].sum())
+total_counts = int(queries['Counts'].sum())
 total_clicks = int(queries['clicks'].sum())
 total_conv = int(queries['conversions'].sum())
-overall_ctr = (queries['clicks'].sum()/queries['impressions'].sum()) * 100 if queries['impressions'].sum()>0 else 0
+overall_ctr = (queries['clicks'].sum()/queries['Counts'].sum()) * 100 if queries['Counts'].sum()>0 else 0
 overall_cr = (queries['conversions'].sum()/queries['clicks'].sum()) * 100 if queries['clicks'].sum()>0 else 0
 total_revenue = 0.0  # No revenue column
 
 c1,c2,c3,c4,c5 = st.columns(5)
 with c1:
-    st.markdown(f"<div class='kpi'><div class='value'>{total_impr:,}</div><div class='label'>✨ Total Impressions</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi'><div class='value'>{total_counts:,}</div><div class='label'>✨ Total Counts</div></div>", unsafe_allow_html=True)
 with c2:
     st.markdown(f"<div class='kpi'><div class='value'>{total_clicks:,}</div><div class='label'>👆 Total Clicks</div></div>", unsafe_allow_html=True)
 with c3:
@@ -494,7 +494,7 @@ with tab_overview:
             st.info("📅 Add more date range for trends. Sample: Q4 2025 shows INTIMATE CARE spike.")
     with colB:
         st.markdown("**Top 10 Queries (Counts)**")
-        top10 = queries.nlargest(10, 'Counts')[['search', 'Counts', 'count', 'Converion Rate']].rename(columns={'search':'Query', 'Counts':'Search Counts'})
+        top10 = queries.nlargest(10, 'Counts')[['search', 'Counts', 'clicks', 'Converion Rate']].rename(columns={'search':'Query', 'Counts':'Search Counts'})
         st.dataframe(top10, use_container_width=True, help="From queries_clustered: High-vol like 'feminine wash' (1,642 Counts).")
 
     st.markdown("---")
@@ -502,8 +502,8 @@ with tab_overview:
 
     # Enhanced KPIs with st.metric (Animated, Tooltips)
     total_counts = int(queries['Counts'].sum()) if not queries['Counts'].empty else 0
-    total_clicks = int(queries['count'].sum()) if not queries['count'].empty else 0
-    total_conv_safe = int((queries['count'] * queries['Converion Rate']).sum().fillna(0))
+    total_clicks = int(queries['clicks'].sum()) if not queries['clicks'].empty else 0
+    total_conv_safe = int((queries['clicks'] * queries['Converion Rate']).sum().fillna(0))
     overall_ctr = (total_clicks / total_counts * 100) if total_counts > 0 else 0
     overall_cr = (total_conv_safe / total_clicks * 100) if total_clicks > 0 else 0
 
@@ -566,8 +566,8 @@ with tab_overview:
     g1, g2 = st.columns(2)
     with g1:
         if 'Brand' in queries.columns:
-            brand_perf = queries.groupby('Brand').agg({'Counts':'sum', 'count':'sum', 'Converion Rate':'mean'}).reset_index()
-            brand_perf['conversions'] = (brand_perf['count'] * brand_perf['Converion Rate']).round()
+            brand_perf = queries.groupby('Brand').agg({'Counts':'sum', 'clicks':'sum', 'Converion Rate':'mean'}).reset_index()
+            brand_perf['conversions'] = (brand_perf['clicks'] * brand_perf['Converion Rate']).round()
             brand_perf['share'] = (brand_perf['Counts'] / total_counts * 100).round(2)
             fig = px.bar(brand_perf.sort_values('Counts', ascending=False).head(10), 
                          x='Brand', y='Counts', title='Top Brands by Counts (e.g., Sofy Leads @614k Full)',
@@ -577,8 +577,8 @@ with tab_overview:
             st.info("🏷 Brand data ready from sheet.")
     with g2:
         if 'Category' in queries.columns:
-            cat_perf = queries.groupby('Category').agg({'Counts':'sum', 'count':'sum', 'Converion Rate':'mean'}).reset_index()
-            cat_perf['conversions'] = (cat_perf['count'] * cat_perf['Converion Rate']).round()
+            cat_perf = queries.groupby('Category').agg({'Counts':'sum', 'clicks':'sum', 'Converion Rate':'mean'}).reset_index()
+            cat_perf['conversions'] = (cat_perf['clicks'] * cat_perf['Converion Rate']).round()
             cat_perf['share'] = (cat_perf['Counts'] / total_counts * 100).round(2)
             st.markdown("**Top Categories by Counts**")
             if AGGRID_OK:
@@ -615,19 +615,19 @@ with tab_search:
             st.info("Install 'wordcloud' and 'matplotlib' to enable word cloud (pip install wordcloud matplotlib).")
 
     st.subheader("📏 Query Length & Performance")
-    ql = queries.groupby('query_length').agg(impressions=('impressions','sum'), clicks=('clicks','sum')).reset_index()
-    ql['ctr'] = ql.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
+    ql = queries.groupby('query_length').agg(Counts=('Counts','sum'), clicks=('clicks','sum')).reset_index()
+    ql['ctr'] = ql.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
     if not ql.empty:
-        st.plotly_chart(px.scatter(ql, x='query_length', y='ctr', size='impressions', title='Query Length vs CTR (Size=Impressions)', color_discrete_sequence=px.colors.qualitative.Plotly), use_container_width=True)
+        st.plotly_chart(px.scatter(ql, x='query_length', y='ctr', size='Counts', title='Query Length vs CTR (Size=Counts)', color_discrete_sequence=px.colors.qualitative.Plotly), use_container_width=True)
     else:
         st.info("No query length data.")
 
     st.subheader("📊 Long-Tail vs Short-Tail")
     queries['is_long_tail'] = queries['query_length'] >= 20
-    lt = queries.groupby('is_long_tail').agg(impressions=('impressions','sum'), conversions=('conversions','sum')).reset_index()
+    lt = queries.groupby('is_long_tail').agg(Counts=('Counts','sum'), conversions=('conversions','sum')).reset_index()
     lt['label'] = lt['is_long_tail'].map({True:'Long-tail (>=20 chars)', False:'Short-tail'})
     if not lt.empty:
-        st.plotly_chart(px.pie(lt, names='label', values='impressions', title='Impression Share: Long-Tail vs Short-Tail', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
+        st.plotly_chart(px.pie(lt, names='label', values='Counts', title='Counts Share: Long-Tail vs Short-Tail', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
     else:
         st.info("No long-tail information.")
 
@@ -641,11 +641,11 @@ with tab_brand:
         st.dataframe(brand_summary, use_container_width=True)
 
     if 'brand' in queries.columns and queries['brand'].notna().any():
-        bs = queries.groupby('brand').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
-        bs['ctr'] = bs.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
+        bs = queries.groupby('brand').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
+        bs['ctr'] = bs.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
         bs['cr'] = bs.apply(lambda r: (r['conversions']/r['clicks']*100) if r['clicks']>0 else 0, axis=1)
-        st.plotly_chart(px.bar(bs.sort_values('impressions', ascending=False).head(20), x='brand', y='impressions', title='Top Brands by Impressions', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
-        st.plotly_chart(px.scatter(bs, x='impressions', y='ctr', size='conversions', color='brand', title='Brand: Impressions vs CTR (Size=Conversions)', color_discrete_sequence=px.colors.qualitative.Plotly), use_container_width=True)
+        st.plotly_chart(px.bar(bs.sort_values('Counts', ascending=False).head(20), x='brand', y='Counts', title='Top Brands by Counts', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
+        st.plotly_chart(px.scatter(bs, x='Counts', y='ctr', size='conversions', color='brand', title='Brand: Counts vs CTR (Size=Conversions)', color_discrete_sequence=px.colors.qualitative.Plotly), use_container_width=True)
 
         st.subheader("🔑 Top Keywords per Brand")
         rows = []
@@ -677,10 +677,10 @@ with tab_category:
         st.dataframe(category_summary, use_container_width=True)
 
     if 'category' in queries.columns and queries['category'].notna().any():
-        cs = queries.groupby('category').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
-        cs['ctr'] = cs.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
+        cs = queries.groupby('category').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
+        cs['ctr'] = cs.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
         cs['cr'] = cs.apply(lambda r: (r['conversions']/r['clicks']*100) if r['clicks']>0 else 0, axis=1)
-        st.plotly_chart(px.bar(cs.sort_values('impressions', ascending=False), x='category', y='impressions', title='Impressions by Category', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
+        st.plotly_chart(px.bar(cs.sort_values('Counts', ascending=False), x='category', y='Counts', title='Counts by Category', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
         st.plotly_chart(px.bar(cs.sort_values('cr', ascending=False), x='category', y='cr', title='Conversion Rate by Category (%)', color_discrete_sequence=px.colors.qualitative.Plotly), use_container_width=True)
 
         st.subheader("🔑 Top Keywords per Category")
@@ -713,9 +713,9 @@ with tab_subcat:
         st.dataframe(subcategory_summary, use_container_width=True)
 
     if 'sub_category' in queries.columns and queries['sub_category'].notna().any():
-        sc = queries.groupby('sub_category').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
-        sc['ctr'] = sc.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
-        st.plotly_chart(px.bar(sc.sort_values('impressions', ascending=False).head(30), x='sub_category', y='impressions', title='Top Subcategories by Impressions', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
+        sc = queries.groupby('sub_category').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
+        sc['ctr'] = sc.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+        st.plotly_chart(px.bar(sc.sort_values('Counts', ascending=False).head(30), x='sub_category', y='Counts', title='Top Subcategories by Counts', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
     else:
         st.info("No sub_category column present in dataset.")
 
@@ -736,28 +736,28 @@ with tab_time:
     st.markdown("Uncover monthly trends to optimize campaigns. 📅")
 
     if queries['month'].notna().any():
-        monthly = queries.groupby('month').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
-        monthly['ctr'] = monthly.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
+        monthly = queries.groupby('month').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
+        monthly['ctr'] = monthly.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
         try:
             monthly['month_dt'] = pd.to_datetime(monthly['month'], format='%b %Y', errors='coerce')
             monthly = monthly.sort_values('month_dt')
         except:
             monthly = monthly.sort_values('month')
-        st.plotly_chart(px.line(monthly, x='month', y='impressions', title='Monthly Impressions', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
+        st.plotly_chart(px.line(monthly, x='month', y='Counts', title='Monthly Counts', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
         st.plotly_chart(px.line(monthly, x='month', y='ctr', title='Monthly Average CTR (%)', color_discrete_sequence=px.colors.qualitative.Plotly), use_container_width=True)
     else:
         st.info("No month data to plot.")
 
-    st.subheader("🏷 Top Brands by Month (Impressions)")  # Replaced CTR by Day of Week
+    st.subheader("🏷 Top Brands by Month (Counts)")  # Replaced CTR by Day of Week
     if 'brand' in queries.columns and queries['brand'].notna().any() and queries['month'].notna().any():
-        top_brands = queries.groupby('brand')['impressions'].sum().sort_values(ascending=False).head(5).index
-        brand_month = queries[queries['brand'].isin(top_brands)].groupby(['month','brand']).agg(impressions=('impressions','sum')).reset_index()
+        top_brands = queries.groupby('brand')['Counts'].sum().sort_values(ascending=False).head(5).index
+        brand_month = queries[queries['brand'].isin(top_brands)].groupby(['month','brand']).agg(Counts=('Counts','sum')).reset_index()
         try:
             brand_month['month_dt'] = pd.to_datetime(brand_month['month'], format='%b %Y', errors='coerce')
             brand_month = brand_month.sort_values('month_dt')
         except:
             brand_month = brand_month.sort_values('month')
-        fig = px.bar(brand_month, x='month', y='impressions', color='brand', title='Top 5 Brands by Impressions per Month', color_discrete_sequence=px.colors.qualitative.D3)
+        fig = px.bar(brand_month, x='month', y='Counts', color='brand', title='Top 5 Brands by Counts per Month', color_discrete_sequence=px.colors.qualitative.D3)
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Brand or month data not available for brand-month analysis.")
@@ -769,9 +769,9 @@ with tab_pivot:
 
     st.subheader("📋 Prebuilt: Brand × Query (Top 300)")
     if 'brand' in queries.columns:
-        pv = queries.groupby(['brand','normalized_query']).agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
-        pv['ctr'] = pv.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
-        pv_top = pv.sort_values('impressions', ascending=False).head(300)
+        pv = queries.groupby(['brand','normalized_query']).agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
+        pv['ctr'] = pv.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+        pv_top = pv.sort_values('Counts', ascending=False).head(300)
         if AGGRID_OK:
             gb = GridOptionsBuilder.from_dataframe(pv_top)
             gb.configure_grid_options(enableRangeSelection=True, pagination=True)
@@ -799,7 +799,7 @@ with tab_pivot:
     columns = queries.columns.tolist()
     idx = st.multiselect("Rows (Index)", options=columns, default=['normalized_query'])
     cols = st.multiselect("Columns", options=columns, default=['brand'])
-    val = st.selectbox("Value (Measure)", options=['impressions','clicks','conversions'], index=0)  # Removed revenue
+    val = st.selectbox("Value (Measure)", options=['Counts','clicks','conversions'], index=0)  # Updated to Counts
     aggfunc = st.selectbox("Aggregation", options=['sum','mean','count'], index=0)
     if st.button("Generate Pivot"):
         try:
@@ -827,54 +827,54 @@ with tab_insights:
             except Exception as e:
                 st.error(f"Rendering error: {e}")
 
-    # Q1: Top queries by impressions (originally Q1)
+    # Q1: Top queries by Counts (originally Q1)
     def q1():
-        out = queries.groupby('normalized_query').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index().sort_values('impressions', ascending=False).head(30)
+        out = queries.groupby('normalized_query').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index().sort_values('Counts', ascending=False).head(30)
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
             st.dataframe(out, use_container_width=True)
-    q_expand("Q1 — Top Queries by Impressions (Top 30)", "Which queries drive the most traffic? Prioritize for search tuning and inventory.", q1, "📈")
+    q_expand("Q1 — Top Queries by Counts (Top 30)", "Which queries drive the most traffic? Prioritize for search tuning and inventory.", q1, "📈")
 
-    # Q2: High impressions, low CTR (originally Q2)
+    # Q2: High Counts, low CTR (originally Q2)
     def q2():
-        df2 = queries.groupby('normalized_query').agg(impressions=('impressions','sum'), clicks=('clicks','sum')).reset_index()
-        df2['ctr'] = df2.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
-        out = df2[(df2['impressions']>=df2['impressions'].quantile(0.6)) & (df2['ctr']<=df2['ctr'].quantile(0.3))].sort_values('impressions', ascending=False).head(30)
+        df2 = queries.groupby('normalized_query').agg(Counts=('Counts','sum'), clicks=('clicks','sum')).reset_index()
+        df2['ctr'] = df2.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+        out = df2[(df2['Counts']>=df2['Counts'].quantile(0.6)) & (df2['ctr']<=df2['ctr'].quantile(0.3))].sort_values('Counts', ascending=False).head(30)
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
             st.dataframe(out, use_container_width=True)
-    q_expand("Q2 — High Impressions, Low CTR", "Queries with high traffic but low engagement. Improve relevance, snippets, or imagery.", q2, "⚠️")
+    q_expand("Q2 — High Counts, Low CTR", "Queries with high traffic but low engagement. Improve relevance, snippets, or imagery.", q2, "⚠️")
 
     # Q3: Top queries by conversion rate (originally Q4)
     def q3():
-        df4 = queries.groupby('normalized_query').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
-        df4 = df4[df4['impressions']>=50]
+        df4 = queries.groupby('normalized_query').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
+        df4 = df4[df4['Counts']>=50]
         df4['cr'] = df4.apply(lambda r: (r['conversions']/r['clicks']*100) if r['clicks']>0 else 0, axis=1)
         out = df4.sort_values('cr', ascending=False).head(30)
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
             st.dataframe(out, use_container_width=True)
-    q_expand("Q3 — Top Queries by Conversion Rate (Min Impressions=50)", "High-converting queries for paid promotions.", q3, "🎯")
+    q_expand("Q3 — Top Queries by Conversion Rate (Min Counts=50)", "High-converting queries for paid promotions.", q3, "🎯")
 
     # Q4: Long-tail contribution (originally Q5)
     def q4():
         lt = queries[queries['query_length']>=20]
         st.markdown(f"Long-tail rows: {len(lt):,} / total {len(queries):,}")
-        st.plotly_chart(px.pie(names=['Long-tail','Rest'], values=[lt['impressions'].sum(), queries['impressions'].sum()-lt['impressions'].sum()], title='Impression Share: Long-Tail vs Rest', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
+        st.plotly_chart(px.pie(names=['Long-tail','Rest'], values=[lt['Counts'].sum(), queries['Counts'].sum()-lt['Counts'].sum()], title='Counts Share: Long-Tail vs Rest', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
     q_expand("Q4 — Long-Tail vs Short-Tail (>=20 chars)", "How much traffic comes from long-tail queries? Key for content strategy.", q4, "📏")
 
     # Q5: Brand vs generic share (originally Q7)
     def q5():
         if 'brand' in queries.columns:
             branded = queries[queries['brand'].notna() & (queries['brand']!='')]
-            branded_share = branded['impressions'].sum()
-            total = queries['impressions'].sum()
-            st.markdown(f"Branded impressions: {branded_share:,} / Total: {total:,}  —  Share: {branded_share/total:.2%}")
-            st.plotly_chart(px.pie(names=['Branded','Generic'], values=[branded_share, total-branded_share], title='Branded vs Generic Impression Share', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
-            pivot = queries.pivot_table(values=['impressions','clicks','conversions'], index=['brand'], aggfunc='sum').reset_index()
+            branded_share = branded['Counts'].sum()
+            total = queries['Counts'].sum()
+            st.markdown(f"Branded Counts: {branded_share:,} / Total: {total:,}  —  Share: {branded_share/total:.2%}")
+            st.plotly_chart(px.pie(names=['Branded','Generic'], values=[branded_share, total-branded_share], title='Branded vs Generic Counts Share', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
+            pivot = queries.pivot_table(values=['Counts','clicks','conversions'], index=['brand'], aggfunc='sum').reset_index()
             if AGGRID_OK:
                 AgGrid(pivot, height=400)
             else:
@@ -885,11 +885,11 @@ with tab_insights:
 
     # Q6: Rising queries MoM (originally Q8)
     def q6():
-        mom = queries.groupby(['month','normalized_query']).agg(impressions=('impressions','sum')).reset_index()
+        mom = queries.groupby(['month','normalized_query']).agg(Counts=('Counts','sum')).reset_index()
         if len(mom['month'].unique())<2:
             st.info("Not enough months to compute MoM.")
             return
-        pivot = mom.pivot(index='normalized_query', columns='month', values='impressions').fillna(0)
+        pivot = mom.pivot(index='normalized_query', columns='month', values='Counts').fillna(0)
         months_sorted = sorted(pivot.columns, key=lambda x: pd.to_datetime(x, format='%b %Y', errors='coerce') if isinstance(x,str) else x)
         if len(months_sorted)>=2:
             recent, prev = months_sorted[-1], months_sorted[-2]
@@ -905,20 +905,20 @@ with tab_insights:
 
     # Q7: Query funnel snapshot (originally Q11)
     def q7():
-        snap = queries.groupby('normalized_query').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index().sort_values('impressions', ascending=False).head(200)
+        snap = queries.groupby('normalized_query').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index().sort_values('Counts', ascending=False).head(200)
         if AGGRID_OK:
             AgGrid(snap, height=400)
         else:
             st.dataframe(snap.head(100), use_container_width=True)
-    q_expand("Q7 — Query Funnel Snapshot (Top 200)", "View top queries' funnel: impressions → clicks → conversions.", q7, "📊")
+    q_expand("Q7 — Query Funnel Snapshot (Top 200)", "View top queries' funnel: Counts → clicks → conversions.", q7, "📊")
 
     # Q8: Traffic concentration (originally Q14)
     def q8():
-        qq = queries.groupby('normalized_query').agg(impressions=('impressions','sum')).reset_index().sort_values('impressions', ascending=False)
+        qq = queries.groupby('normalized_query').agg(Counts=('Counts','sum')).reset_index().sort_values('Counts', ascending=False)
         top5n = max(1, int(0.05*len(qq)))
-        share = qq.head(top5n)['impressions'].sum() / qq['impressions'].sum() if qq['impressions'].sum()>0 else 0
-        st.markdown(f"Top 5% queries contribute **{share:.2%}** of impressions (top {top5n} queries).")
-        st.plotly_chart(px.pie(names=['Top 5% Queries','Rest'], values=[qq.head(top5n)['impressions'].sum(), qq['impressions'].sum()-qq.head(top5n)['impressions'].sum()], title='Traffic Concentration: Top 5% Queries', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
+        share = qq.head(top5n)['Counts'].sum() / qq['Counts'].sum() if qq['Counts'].sum()>0 else 0
+        st.markdown(f"Top 5% queries contribute **{share:.2%}** of Counts (top {top5n} queries).")
+        st.plotly_chart(px.pie(names=['Top 5% Queries','Rest'], values=[qq.head(top5n)['Counts'].sum(), qq['Counts'].sum()-qq.head(top5n)['Counts'].sum()], title='Traffic Concentration: Top 5% Queries', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
     q_expand("Q8 — Traffic Concentration (Top 5%)", "Prioritize top queries driving most traffic.", q8, "📈")
 
     # Q9: Keyword co-occurrence (originally Q15)
@@ -942,8 +942,8 @@ with tab_insights:
 
     # Q10: High searches, zero conversions (originally Q16)
     def q10():
-        dfm = queries.groupby('normalized_query').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
-        out = dfm[(dfm['impressions']>=dfm['impressions'].quantile(0.7)) & (dfm['conversions']==0)].sort_values('impressions', ascending=False).head(40)
+        dfm = queries.groupby('normalized_query').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
+        out = dfm[(dfm['Counts']>=dfm['Counts'].quantile(0.7)) & (dfm['conversions']==0)].sort_values('Counts', ascending=False).head(40)
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
@@ -966,27 +966,27 @@ with tab_insights:
 
     # Q12: Top queries by CTR (originally Q19)
     def q12():
-        df19 = queries.groupby('normalized_query').agg(impressions=('impressions','sum'), clicks=('clicks','sum')).reset_index()
-        df19 = df19[df19['impressions']>=30]
-        df19['ctr'] = df19.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
+        df19 = queries.groupby('normalized_query').agg(Counts=('Counts','sum'), clicks=('clicks','sum')).reset_index()
+        df19 = df19[df19['Counts']>=30]
+        df19['ctr'] = df19.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
         out = df19.sort_values('ctr', ascending=False).head(40)
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
             st.dataframe(out, use_container_width=True)
-    q_expand("Q12 — Top Queries by CTR (Min Impressions=30)", "High-engagement queries for ad campaigns.", q12, "📈")
+    q_expand("Q12 — Top Queries by CTR (Min Counts=30)", "High-engagement queries for ad campaigns.", q12, "📈")
 
     # Q13: Low CTR & CR queries (originally Q20)
     def q13():
-        df20 = queries.groupby('normalized_query').agg(impressions=('impressions','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
-        df20['ctr'] = df20.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
+        df20 = queries.groupby('normalized_query').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
+        df20['ctr'] = df20.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
         df20['cr'] = df20.apply(lambda r: (r['conversions']/r['clicks']*100) if r['clicks']>0 else 0, axis=1)
-        out = df20[(df20['impressions']>=df20['impressions'].quantile(0.6)) & (df20['ctr']<=df20['ctr'].quantile(0.25)) & (df20['cr']<=df20['cr'].quantile(0.25))].sort_values('impressions', ascending=False).head(50)
+        out = df20[(df20['Counts']>=df20['Counts'].quantile(0.6)) & (df20['ctr']<=df20['ctr'].quantile(0.25)) & (df20['cr']<=df20['cr'].quantile(0.25))].sort_values('Counts', ascending=False).head(50)
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
             st.dataframe(out, use_container_width=True)
-    q_expand("Q13 — High Impressions, Low CTR & CR", "Optimize search results for these underperforming queries.", q13, "⚠️")
+    q_expand("Q13 — High Counts, Low CTR & CR", "Optimize search results for these underperforming queries.", q13, "⚠️")
 
     # Q14: Top keywords per category (originally Q21)
     def q14():
@@ -1021,7 +1021,7 @@ with tab_insights:
 
     # Q16: Top queries by conversions (originally Q26)
     def q16():
-        out = queries.groupby('normalized_query').agg(conversions=('conversions','sum'), impressions=('impressions','sum')).reset_index().sort_values('conversions', ascending=False).head(30)
+        out = queries.groupby('normalized_query').agg(conversions=('conversions','sum'), Counts=('Counts','sum')).reset_index().sort_values('conversions', ascending=False).head(30)
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
@@ -1030,9 +1030,9 @@ with tab_insights:
 
     # Q17: Month-by-month query trends (originally Q27)
     def q17():
-        mom = queries.groupby(['month','normalized_query']).agg(impressions=('impressions','sum')).reset_index()
-        topq = mom.groupby('normalized_query')['impressions'].sum().reset_index().sort_values('impressions', ascending=False).head(500)['normalized_query']
-        sample = mom[mom['normalized_query'].isin(topq)].pivot(index='normalized_query', columns='month', values='impressions').fillna(0)
+        mom = queries.groupby(['month','normalized_query']).agg(Counts=('Counts','sum')).reset_index()
+        topq = mom.groupby('normalized_query')['Counts'].sum().reset_index().sort_values('Counts', ascending=False).head(500)['normalized_query']
+        sample = mom[mom['normalized_query'].isin(topq)].pivot(index='normalized_query', columns='month', values='Counts').fillna(0)
         if sample.shape[1] >= 2:
             if AGGRID_OK:
                 AgGrid(sample.head(200).reset_index(), height=400)
@@ -1061,8 +1061,8 @@ with tab_insights:
             return
         months_sorted = sorted(queries['month'].dropna().unique(), key=lambda x: pd.to_datetime(x, format='%b %Y', errors='coerce'))
         first, last = months_sorted[0], months_sorted[-1]
-        m1 = queries[queries['month']==first].groupby('normalized_query').agg(impressions=('impressions','sum')).rename(columns={'impressions':'m1'})
-        m2 = queries[queries['month']==last].groupby('normalized_query').agg(impressions=('impressions','sum')).rename(columns={'impressions':'m2'})
+        m1 = queries[queries['month']==first].groupby('normalized_query').agg(Counts=('Counts','sum')).rename(columns={'Counts':'m1'})
+        m2 = queries[queries['month']==last].groupby('normalized_query').agg(Counts=('Counts','sum')).rename(columns={'Counts':'m2'})
         comp = m1.join(m2, how='outer').fillna(0)
         comp['pct_change'] = (comp['m2'] - comp['m1']) / comp['m1'].replace(0, np.nan)
         out = comp.sort_values('pct_change', ascending=False).head(50).reset_index()
@@ -1074,29 +1074,29 @@ with tab_insights:
 
     # Q20: Top 50 queries (quick) (originally Q31)
     def q20():
-        out = queries.groupby('normalized_query').agg(impressions=('impressions','sum')).reset_index().sort_values('impressions',ascending=False).head(50)
+        out = queries.groupby('normalized_query').agg(Counts=('Counts','sum')).reset_index().sort_values('Counts',ascending=False).head(50)
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
             st.dataframe(out, use_container_width=True)
-    q_expand("Q20 — Top 50 Queries (Quick)", "Quick ranking of top queries by impressions.", q20, "📊")
+    q_expand("Q20 — Top 50 Queries (Quick)", "Quick ranking of top queries by Counts.", q20, "📊")
 
     # Q21: Top brands quick view (originally Q32)
     def q21():
         if 'brand' in queries.columns:
-            out = queries.groupby('brand').agg(impressions=('impressions','sum'), conversions=('conversions','sum')).reset_index().sort_values('impressions', ascending=False).head(50)
+            out = queries.groupby('brand').agg(Counts=('Counts','sum'), conversions=('conversions','sum')).reset_index().sort_values('Counts', ascending=False).head(50)
             if AGGRID_OK:
                 AgGrid(out, height=400)
             else:
                 st.dataframe(out, use_container_width=True)
         else:
             st.info("Brand missing.")
-    q_expand("Q21 — Top Brands (Quick)", "Quick brand ranking by impressions.", q21, "🏷")
+    q_expand("Q21 — Top Brands (Quick)", "Quick brand ranking by Counts.", q21, "🏷")
 
     # Q22: Top subcategories quick view (originally Q33)
     def q22():
         if 'sub_category' in queries.columns:
-            out = queries.groupby('sub_category').agg(impressions=('impressions','sum')).reset_index().sort_values('impressions', ascending=False).head(50)
+            out = queries.groupby('sub_category').agg(Counts=('Counts','sum')).reset_index().sort_values('Counts', ascending=False).head(50)
             if AGGRID_OK:
                 AgGrid(out, height=400)
             else:
@@ -1105,18 +1105,18 @@ with tab_insights:
             st.info("Subcategory missing.")
     q_expand("Q22 — Top Subcategories (Quick)", "Quick subcategory ranking.", q22, "🧴")
 
-    # Q23: Monthly impressions table (originally Q35)
+    # Q23: Monthly Counts table (originally Q35)
     def q23():
-        out = queries.groupby('month').agg(impressions=('impressions','sum')).reset_index().sort_values('month')
+        out = queries.groupby('month').agg(Counts=('Counts','sum')).reset_index().sort_values('month')
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
             st.dataframe(out, use_container_width=True)
-    q_expand("Q23 — Monthly Impressions Table", "Month-level volumes for reporting.", q23, "📅")
+    q_expand("Q23 — Monthly Counts Table", "Month-level volumes for reporting.", q23, "📅")
 
     # Q24: Top queries by clicks (originally Q37)
     def q24():
-        out = queries.groupby('normalized_query').agg(clicks=('clicks','sum'), impressions=('impressions','sum')).reset_index().sort_values('clicks', ascending=False).head(30)
+        out = queries.groupby('normalized_query').agg(clicks=('clicks','sum'), Counts=('Counts','sum')).reset_index().sort_values('clicks', ascending=False).head(30)
         if AGGRID_OK:
             AgGrid(out, height=400)
         else:
@@ -1126,7 +1126,7 @@ with tab_insights:
     # Q25: Category vs brand performance (originally Q38)
     def q25():
         if 'category' in queries.columns and 'brand' in queries.columns:
-            pivot = queries.pivot_table(values=['impressions','clicks','conversions'], index=['category'], columns=['brand'], aggfunc='sum').fillna(0)
+            pivot = queries.pivot_table(values=['Counts','clicks','conversions'], index=['category'], columns=['brand'], aggfunc='sum').fillna(0)
             if AGGRID_OK:
                 AgGrid(pivot.reset_index(), height=400)
             else:
@@ -1135,19 +1135,19 @@ with tab_insights:
             st.info("Category or brand missing.")
     q_expand("Q25 — Category vs Brand Performance (Pivot)", "Analyze brand performance within categories.", q25, "📦🏷")
 
-    # Q26: High impressions, low clicks by category (originally Q39)
+    # Q26: High Counts, low clicks by category (originally Q39)
     def q26():
         if 'category' in queries.columns:
-            df39 = queries.groupby(['category','normalized_query']).agg(impressions=('impressions','sum'), clicks=('clicks','sum')).reset_index()
-            df39['ctr'] = df39.apply(lambda r: (r['clicks']/r['impressions']*100) if r['impressions']>0 else 0, axis=1)
-            out = df39[(df39['impressions']>=df39['impressions'].quantile(0.6)) & (df39['ctr']<=df39['ctr'].quantile(0.3))].sort_values('impressions', ascending=False).head(50)
+            df39 = queries.groupby(['category','normalized_query']).agg(Counts=('Counts','sum'), clicks=('clicks','sum')).reset_index()
+            df39['ctr'] = df39.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+            out = df39[(df39['Counts']>=df39['Counts'].quantile(0.6)) & (df39['ctr']<=df39['ctr'].quantile(0.3))].sort_values('Counts', ascending=False).head(50)
             if AGGRID_OK:
                 AgGrid(out, height=400)
             else:
                 st.dataframe(out, use_container_width=True)
         else:
             st.info("Category missing.")
-    q_expand("Q26 — High Impressions, Low Clicks by Category", "Identify category-specific queries needing optimization.", q26, "⚠️")
+    q_expand("Q26 — High Counts, Low Clicks by Category", "Identify category-specific queries needing optimization.", q26, "⚠️")
 
     st.info("Want more advanced questions (e.g., anomaly detection, semantic clustering)? I can add them with additional packages like scikit-learn or prophet.")
 
