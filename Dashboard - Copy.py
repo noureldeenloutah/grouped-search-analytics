@@ -510,12 +510,11 @@ with tab_overview:
                             color='Counts',
                             color_continuous_scale=['#E6F3FA', '#FFB085', '#FF5A6E'],
                             template='plotly_white',
-                            text=monthly_counts['Counts'].astype(str),  # Use Counts as text with string conversion
-                            textposition='outside')
+                            text=monthly_counts['Counts'].astype(str))  # Show counts on bars
                 
-                # Add percentage as secondary text via customdata
-                fig.update_traces(customdata=monthly_counts['Percentage'],
-                                texttemplate='%{text}<br>%{customdata:.1f}%',
+                # Update traces to position text outside and add percentages
+                fig.update_traces(texttemplate='%{text}<br>%{customdata:.1f}%',
+                                customdata=monthly_counts['Percentage'],
                                 textposition='outside')
                 
                 # Enhance attractiveness: Custom layout for beauty
