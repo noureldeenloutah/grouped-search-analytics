@@ -515,35 +515,46 @@ total_clicks = int(queries['clicks'].sum())
 total_conversions = int(queries['conversions'].sum())
 overall_ctr = (total_clicks / total_counts * 100) if total_counts > 0 else 0
 overall_cr = (total_conversions / total_clicks * 100) if total_clicks > 0 else 0
+total_revenue = 0.0  # No revenue column
 
-col1, col2, col3, col4, col5 = st.columns(5)
+c1, c2, c3, c4, c5 = st.columns(5)
+with c1:
+    st.markdown(f"<div class='kpi'><div class='value'>{total_counts:,}</div><div class='label'>✨ Total Impressions</div></div>", unsafe_allow_html=True)
+with c2:
+    st.markdown(f"<div class='kpi'><div class='value'>{total_clicks:,}</div><div class='label'>👆 Total Clicks</div></div>", unsafe_allow_html=True)
+with c3:
+    st.markdown(f"<div class='kpi'><div class='value'>{total_conversions:,}</div><div class='label'>🎯 Total Conversions</div></div>", unsafe_allow_html=True)
+with c4:
+    st.markdown(f"<div class='kpi'><div class='value'>{overall_ctr:.2f}%</div><div class='label'>📈 Overall CTR</div></div>", unsafe_allow_html=True)
+with c5:
+    st.markdown(f"<div class='kpi'><div class='value'>{overall_cr:.2f}%</div><div class='label'>💡 Overall CR</div></div>", unsafe_allow_html=True)
 
-with col1:
-    st.metric("✨ Total Impressions", f"{total_counts:,}",
-              help="Total search impressions from 'count' column")
-
-with col2:
-    st.metric("🖱️ Total Clicks", f"{total_clicks:,}",
-              help="Calculated from impressions × CTR")
-
-with col3:
-    st.metric("🎯 Conversions", f"{total_conversions:,}",
-              help="Calculated from clicks × conversion rate")
-
-with col4:
-    st.metric("📈 Avg CTR", f"{overall_ctr:.2f}%",
-              help="Overall click-through rate")
-
-with col5:
-    st.metric("⚡ Avg CR", f"{overall_cr:.2f}%",
-              help="Overall conversion rate")
-
-# Show data source info
+# Show data source info in sidebar
 st.sidebar.info(f"**Data Source:** {main_key}")
 st.sidebar.write(f"**Total Rows:** {len(queries):,}")
 st.sidebar.write(f"**Total Impressions:** {total_counts:,}")
 st.sidebar.write(f"**Calculated Clicks:** {total_clicks:,}")
 st.sidebar.write(f"**Calculated Conversions:** {total_conversions:,}")
+
+# Add debug info in an expander so it doesn't clutter the sidebar
+with st.sidebar.expander("🔍 Data Debug Info"):
+    st.write(f"Main sheet: {main_key}")
+    st.write(f"Processed columns: {list(queries.columns)}")
+    st.write(f"Processed shape: {queries.shape}")
+    
+    st.write("**Column Usage:**")
+    if 'count' in raw_queries.columns:
+        st.write(f"✓ Counts/Impressions: 'count' column")
+    else:
+        st.write("✗ Counts/Impressions: No 'count' column found")
+    
+    st.write("**Calculation Method:**")
+    st.write("• Clicks = Counts × Click Through Rate")
+    st.write("• Conversions = Clicks × Conversion Rate")
+    
+    # Show sample of raw data
+    st.write("**Sample data (first 3 rows):**")
+    st.dataframe(raw_queries.head(3))
 
 # ----------------- Tabs -----------------
 tab_overview, tab_search, tab_brand, tab_category, tab_subcat, tab_generic, tab_time, tab_pivot, tab_insights, tab_export = st.tabs([
