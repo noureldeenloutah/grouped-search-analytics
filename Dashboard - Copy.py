@@ -950,61 +950,74 @@ with tab_overview:
                     if 'conversions' in brand_perf.columns:
                         hover_columns.append('conversions')
                     
+                    # Create a beautiful bar chart with text labels
                     fig = px.bar(brand_perf.sort_values('Counts', ascending=False).head(10), 
-                                x='Brand', y='Counts', 
-                                title='<b style="color:#4A90E2; font-size:18px;">Top Brands by Search Counts</b>',
-                                color=color_column, color_continuous_scale='Blues', 
+                                x='Brand', y='Counts',
+                                title='<b style="color:#FF5A6E; font-size:18px; text-shadow: 2px 2px 4px #00000055;">Top Brands by Search Counts</b>',
+                                labels={'Brand': '<i>Brand</i>', 'Counts': '<b>Search Counts</b>'},
+                                color=color_column,
+                                color_continuous_scale=['#E6F3FA', '#FFB085', '#FF5A6E'],
+                                template='plotly_white',
                                 hover_data=hover_columns)
                     
-                    # Enhance attractiveness: Custom layout
+                    # Update traces to position text outside and set hovertemplate
+                    fig.update_traces(
+                        texttemplate='%{y:,.0f}',
+                        textposition='outside',
+                        hovertemplate='<b>%{x}</b><br>Counts: %{y:,.0f}' + 
+                                    ('<br>Share: %{customdata[0]:.2f}%' if 'share' in hover_columns else '') +
+                                    ('<br>Conversions: %{customdata[1]:,.0f}' if 'conversions' in hover_columns and len(hover_columns) > 1 else '') +
+                                    '<extra></extra>'
+                    )
+
+                    # Enhance attractiveness: Custom layout for beauty
                     fig.update_layout(
-                        plot_bgcolor='rgba(255, 255, 245, 0.95)',
-                        paper_bgcolor='rgba(240, 248, 255, 0.8)',
-                        font=dict(color='#1A3C5E', family='Arial'),
-                        title_x=0.5,  # Center alignment for title
+                        plot_bgcolor='rgba(255,255,255,0.95)',
+                        paper_bgcolor='rgba(255,247,232,0.8)',
+                        font=dict(color='#0B486B', family='Segoe UI'),
+                        title_x=0,  # Left alignment for title
                         title_font_size=16,
                         xaxis=dict(
                             title='Brand',
                             showgrid=True, 
-                            gridcolor='rgba(200, 220, 240, 0.5)', 
-                            linecolor='#4A90E2', 
+                            gridcolor='#E6F3FA', 
+                            linecolor='#FF5A6E', 
                             linewidth=2
                         ),
                         yaxis=dict(
                             title='Search Counts',
                             showgrid=True, 
-                            gridcolor='rgba(200, 220, 240, 0.5)', 
-                            linecolor='#4A90E2', 
+                            gridcolor='#E6F3FA', 
+                            linecolor='#FF5A6E', 
                             linewidth=2
                         ),
                         bargap=0.2,
                         barcornerradius=8,
-                        hovermode='x unified'
+                        hovermode='x unified',
+                        annotations=[
+                            dict(
+                                x=0.5, y=1.05, xref='paper', yref='paper',
+                                text='✨ Hover for details | Top brand highlighted below ✨',
+                                showarrow=False,
+                                font=dict(size=10, color='#FF5A6E', family='Segoe UI'),
+                                align='center'
+                            )
+                        ]
                     )
 
-                    # Highlight the top brand if we have data
-                    if 'Counts' in brand_perf.columns and not brand_perf.empty:
-                        top_brand = brand_perf.loc[brand_perf['Counts'].idxmax(), 'Brand']
-                        top_count = brand_perf['Counts'].max()
-                        fig.add_annotation(
-                            x=top_brand, y=top_count,
-                            text=f"🏆 Peak: {top_count:,.0f}",
-                            showarrow=True,
-                            arrowhead=3,
-                            arrowcolor='#4A90E2',
-                            ax=0, ay=-30,
-                            font=dict(size=12, color='#4A90E2', family='Arial', weight='bold')
-                        )
+                    # Highlight the top brand with a custom marker
+                    top_brand = brand_perf.loc[brand_perf['Counts'].idxmax(), 'Brand']
+                    top_count = brand_perf['Counts'].max()
+                    fig.add_annotation(
+                        x=top_brand, y=top_count,
+                        text=f"🏆 Peak: {top_count:,.0f}",
+                        showarrow=True,
+                        arrowhead=3,
+                        arrowcolor='#FF5A6E',
+                        ax=0, ay=-30,
+                        font=dict(size=12, color='#FF5A6E', family='Segoe UI', weight='bold')
+                    )
 
-                    # Update hover template for better readability
-                    hover_template = '<b>%{x}</b><br>Counts: %{y:,.0f}'
-                    if 'share' in brand_perf.columns:
-                        hover_template += '<br>Share: %{customdata[0]:.2f}%'
-                    if 'conversions' in brand_perf.columns and len(hover_columns) > 1:
-                        hover_template += '<br>Conversions: %{customdata[1]:,.0f}'
-                    hover_template += '<extra></extra>'
-                    
-                    fig.update_traces(hovertemplate=hover_template)
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No brand data available after filtering or missing required columns.")
@@ -1023,20 +1036,32 @@ with tab_overview:
                 agg_dict['Counts'] = 'sum'
             if 'clicks' in available_columns:
                 agg_dict['clicks'] = 'sum'
-            if 'Conversion Rate' in available_columns:
-                agg_dict['Conversion Rate'] = 'mean'
+            if 'conversions' in available_columns:
+                agg_dict['conversions'] = 'sum'
+            elif 'Conversion Rate' in available_columns and 'clicks' in available_columns:
+                # We'll calculate conversions after aggregation
+                pass
             
             # Only proceed if we have at least one column to aggregate
             if agg_dict:
                 cat_perf = queries.groupby('Category').agg(agg_dict).reset_index()
                 
-                # Calculate derived metrics only if the required columns exist
-                if 'clicks' in cat_perf.columns and 'Conversion Rate' in cat_perf.columns:
+                # Calculate conversions if we have the necessary columns but not the conversions column
+                if 'conversions' not in cat_perf.columns and 'clicks' in cat_perf.columns and 'Conversion Rate' in queries.columns:
+                    # Calculate average conversion rate for each category first
+                    conv_rate_agg = queries.groupby('Category')['Conversion Rate'].mean().reset_index()
+                    cat_perf = cat_perf.merge(conv_rate_agg, on='Category')
                     cat_perf['conversions'] = (cat_perf['clicks'] * cat_perf['Conversion Rate']).round()
                 
+                # Calculate share and conversion rate
                 if 'Counts' in cat_perf.columns:
                     cat_perf['share'] = (cat_perf['Counts'] / total_counts * 100).round(2)
-                    cat_perf['cr'] = (cat_perf['conversions'] / cat_perf['Counts'] * 100).round(2) if 'conversions' in cat_perf.columns and cat_perf['Counts'].sum() > 0 else 0
+                
+                # FIX: Calculate conversion rate correctly - conversions divided by counts
+                if 'conversions' in cat_perf.columns and 'Counts' in cat_perf.columns:
+                    cat_perf['cr'] = (cat_perf['conversions'] / cat_perf['Counts'] * 100).round(2)
+                else:
+                    cat_perf['cr'] = 0
                 
                 st.markdown("**Top Categories by Counts**")
                 
@@ -1072,14 +1097,14 @@ with tab_overview:
                             styled_cat_perf = cat_perf[display_columns].head(10).style.format(format_dict).set_properties(**{
                                 'text-align': 'center',
                                 'font-size': '14px'
-                            })
+                            }).background_gradient(subset=['cr'], cmap='YlGnBu')
                             st.dataframe(styled_cat_perf, use_container_width=True)
                     except NameError:
                         # AGGRID_OK not defined, use regular DataFrame
                         styled_cat_perf = cat_perf[display_columns].head(10).style.format(format_dict).set_properties(**{
                             'text-align': 'center',
                             'font-size': '14px'
-                        })
+                        }).background_gradient(subset=['cr'], cmap='YlGnBu')
                         st.dataframe(styled_cat_perf, use_container_width=True)
                 else:
                     st.info("Insufficient data columns available for category analysis.")
