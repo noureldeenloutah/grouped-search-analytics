@@ -726,8 +726,8 @@ with tab_overview:
             'Metric': ['Total Counts', 'Total Clicks', 'Total Conversions'],
             'Counts': [total_counts, total_clicks, total_conv_safe]
         })
-        total_all_metrics = chart_data['Counts'].sum()
-        chart_data['Percentage'] = (chart_data['Counts'] / total_all_metrics * 100).round(1)
+        # Calculate share as percentage of total_counts
+        chart_data['Percentage'] = (chart_data['Counts'] / total_counts * 100).round(1)
 
         # Create a beautiful bar chart with text labels
         fig = px.bar(chart_data, x='Metric', y='Counts',
@@ -754,7 +754,7 @@ with tab_overview:
             title_x=0,  # Left alignment for title
             title_font_size=16,
             xaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
-            yaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5E6E', linewidth=2),
+            yaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
             bargap=0.2,
             barcornerradius=8,
             annotations=[
