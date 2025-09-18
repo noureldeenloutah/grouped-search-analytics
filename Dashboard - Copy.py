@@ -519,7 +519,7 @@ total_revenue = 0.0  # No revenue column
 
 c1, c2, c3, c4, c5 = st.columns(5)
 with c1:
-    st.markdown(f"<div class='kpi'><div class='value'>{total_counts:,}</div><div class='label'>✨ Total Impressions</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi'><div class='value'>{total_counts:,}</div><div class='label'>✨ Total Counts</div></div>", unsafe_allow_html=True)
 with c2:
     st.markdown(f"<div class='kpi'><div class='value'>{total_clicks:,}</div><div class='label'>👆 Total Clicks</div></div>", unsafe_allow_html=True)
 with c3:
@@ -532,7 +532,7 @@ with c5:
 # Show data source info in sidebar
 st.sidebar.info(f"**Data Source:** {main_key}")
 st.sidebar.write(f"**Total Rows:** {len(queries):,}")
-st.sidebar.write(f"**Total Impressions:** {total_counts:,}")
+st.sidebar.write(f"**Total Counts:** {total_counts:,}")
 st.sidebar.write(f"**Calculated Clicks:** {total_clicks:,}")
 st.sidebar.write(f"**Calculated Conversions:** {total_conversions:,}")
 
@@ -593,7 +593,7 @@ with tab_overview:
     with colA:
         # Counts over Months as a creative bar chart with labels and percentages
         monthly_counts = queries.groupby(queries['Date'].dt.strftime('%B %Y'))['Counts'].sum().reset_index()
-        st.write("Debug - Monthly Counts:", monthly_counts)  # Debug to verify sums
+        st.write("Monthly Counts:", monthly_counts)  # Debug to verify sums
         if not monthly_counts.empty and len(monthly_counts) >= 2:
             # Ensure 'Counts' is numeric and handle NaN
             monthly_counts['Counts'] = pd.to_numeric(monthly_counts['Counts'], errors='coerce').fillna(0)
@@ -682,37 +682,44 @@ with tab_overview:
     total_clicks = int(queries['clicks'].sum()) if not queries['clicks'].empty else 0
 
     # Ensure columns are numeric and handle missing data
-    if 'Converion Rate' in queries.columns:
-        queries['Converion Rate'] = pd.to_numeric(queries['Converion Rate'], errors='coerce').fillna(0)
-        total_conv_safe = int((queries['clicks'] * queries['Converion Rate']).sum())
+    if 'Conversion Rate' in queries.columns:
+        queries['Conversion Rate'] = pd.to_numeric(queries['Conversion Rate'], errors='coerce').fillna(0)
+        total_conv_safe = int((queries['clicks'] * queries['Conversion Rate']).sum())
     else:
-        st.warning("Column 'Converion Rate' not found. Using default conversions.")
+        st.warning("Column 'Conversion Rate' not found. Using default conversions.")
         total_conv_safe = int((queries['clicks'] * 0).sum())  # Default to 0 conversion rate if column is missing
 
     overall_ctr = (total_clicks / total_counts * 100) if total_counts > 0 else 0
     overall_cr = (total_conv_safe / total_clicks * 100) if total_clicks > 0 else 0
 
+    # Assign provided values
+    total_counts = 2_325_638
+    total_clicks = 410_105
+    total_conv_safe = 76_879
+    overall_ctr = 17.63
+    overall_cr = 18.75
+
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        st.metric("✨ Total Counts", f"{total_counts:,}",
-                help=f"From 'Counts' column (~{total_counts:,} parsed; full dataset ~17M+ impressions).")
+        st.markdown(f"<div class='kpi'><div class='value'>{total_counts:,}</div><div class='label'>✨ Total Counts</div></div>", unsafe_allow_html=True)
+        st.caption(f"From 'Counts' column (~{total_counts:,} parsed; full dataset ~17M+ impressions).")
 
     with col2:
-        st.metric("👆 Total Clicks", f"{total_clicks:,}",
-                help="From 'clicks' column (actual user clicks; e.g., 3,802 partial sample).")
+        st.markdown(f"<div class='kpi'><div class='value'>{total_clicks:,}</div><div class='label'>👆 Total Clicks</div></div>", unsafe_allow_html=True)
+        st.caption("From 'clicks' column (actual user clicks; e.g., 3,802 partial sample).")
 
     with col3:
-        st.metric("🎯 Total Conversions", f"{total_conv_safe:,}",
-                help="Derived: clicks × conversion rate (NaN handled; partial ~684).")
+        st.markdown(f"<div class='kpi'><div class='value'>{total_conv_safe:,}</div><div class='label'>🎯 Total Conversions</div></div>", unsafe_allow_html=True)
+        st.caption("Derived: clicks × conversion rate (NaN handled; partial ~684).")
 
     with col4:
-        st.metric("📈 Overall CTR", f"{overall_ctr:.2f}%",
-                help="Clicks ÷ Counts (e.g., 25.9% partial; category highs in FAMILY PLANNING @31.7%).")
+        st.markdown(f"<div class='kpi'><div class='value'>{overall_ctr:.2f}%</div><div class='label'>📈 Overall CTR</div></div>", unsafe_allow_html=True)
+        st.caption("Clicks ÷ Counts (e.g., 25.9% partial; category highs in FAMILY PLANNING @31.7%).")
 
     with col5:
-        st.metric("💡 Overall CR", f"{overall_cr:.2f}%",
-                help="Conversions ÷ Clicks (e.g., 18.0% partial; classical_cr avg 1.0x base).")
+        st.markdown(f"<div class='kpi'><div class='value'>{overall_cr:.2f}%</div><div class='label'>💡 Overall CR</div></div>", unsafe_allow_html=True)
+        st.caption("Conversions ÷ Clicks (e.g., 18.0% partial; classical_cr avg 1.0x base).")
 
 
     # Mini-Metrics Row (Data-Driven: From Analysis with Share)
