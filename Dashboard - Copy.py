@@ -1113,49 +1113,442 @@ with tab_overview:
         else:
             st.info("📦 Category column not found in the dataset.")
 
-# ----------------- Search Analysis (core) -----------------
+# ----------------- Search Analysis (Enhanced Core) -----------------
 with tab_search:
-    st.header("🔍 Search Column — Deep Dive")
-    st.markdown("Analyze raw search queries (no spelling corrections) with keyword frequency, query length, and long-tail insights. 🎯")
-
-    kw_series = queries['keywords'].explode().dropna()
-    kw_counts = kw_series.value_counts().reset_index()
-    kw_counts.columns = ['keyword', 'count']  # Explicitly rename columns
-    if not kw_counts.empty:
-        st.subheader("Top 30 Words in Search Queries")
-        st.plotly_chart(px.bar(kw_counts.head(30).iloc[::-1], x='count', y='keyword', orientation='h', title='Top Words in Queries', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
-    else:
-        st.info("No keywords extracted from queries.")
-
-    if WORDCLOUD_OK and not kw_counts.empty:
-        st.subheader("🌟 Word Cloud")
-        freqs = dict(zip(kw_counts['keyword'], kw_counts['count']))
-        wc = WordCloud(width=900, height=350, background_color='white', collocations=False, font_path=None).generate_from_frequencies(freqs)
-        fig, ax = plt.subplots(figsize=(12,4))
-        ax.imshow(wc, interpolation='bilinear')
-        ax.axis('off')
-        st.pyplot(fig)
-    else:
-        if not WORDCLOUD_OK:
-            st.info("Install 'wordcloud' and 'matplotlib' to enable word cloud (pip install wordcloud matplotlib).")
-
-    st.subheader("📏 Query Length & Performance")
-    ql = queries.groupby('query_length').agg(Counts=('Counts','sum'), clicks=('clicks','sum')).reset_index()
-    ql['ctr'] = ql.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
-    if not ql.empty:
-        st.plotly_chart(px.scatter(ql, x='query_length', y='ctr', size='Counts', title='Query Length vs CTR (Size=Counts)', color_discrete_sequence=px.colors.qualitative.Plotly), use_container_width=True)
-    else:
-        st.info("No query length data.")
-
-    st.subheader("📊 Long-Tail vs Short-Tail")
-    queries['is_long_tail'] = queries['query_length'] >= 20
-    lt = queries.groupby('is_long_tail').agg(Counts=('Counts','sum'), conversions=('conversions','sum')).reset_index()
-    lt['label'] = lt['is_long_tail'].map({True:'Long-tail (>=20 chars)', False:'Short-tail'})
-    if not lt.empty:
-        st.plotly_chart(px.pie(lt, names='label', values='Counts', title='Counts Share: Long-Tail vs Short-Tail', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
-    else:
-        st.info("No long-tail information.")
-
+    st.header("🔍 Search Column — Deep Dive Analysis")
+    st.markdown("Analyze raw search queries with advanced keyword insights, performance metrics, and actionable intelligence. 🎯")
+    
+    # Hero Image for Search Tab
+    search_image_options = {
+        "Search Analytics Focus": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=🔍+Search+Query+Intelligence",
+        "Data Visualization": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=📊+Keyword+Performance+Hub",
+        "Abstract Search": "https://source.unsplash.com/1200x200/?analytics,data",
+    }
+    selected_search_image = st.sidebar.selectbox("Choose Search Tab Hero", options=list(search_image_options.keys()), index=0, key="search_hero")
+    st.image(search_image_options[selected_search_image], use_container_width=True)
+    
+    # Add error handling and data validation
+    if queries.empty or 'keywords' not in queries.columns:
+        st.error("❌ No keyword data available. Please ensure your data contains properly processed keywords.")
+        st.stop()
+    
+    # Quick Search Metrics Row
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    with col_m1:
+        unique_queries = queries['normalized_query'].nunique()
+        st.markdown(f"""
+        <div class='mini-metric'>
+            <span class='icon'>🔍</span>
+            <div class='value'>{unique_queries:,}</div>
+            <div class='label'>Unique Search Queries</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_m2:
+        avg_query_length = queries['query_length'].mean()
+        st.markdown(f"""
+        <div class='mini-metric'>
+            <span class='icon'>📏</span>
+            <div class='value'>{avg_query_length:.1f}</div>
+            <div class='label'>Avg Query Length</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_m3:
+        total_keywords = sum(len(kw) for kw in queries['keywords'] if isinstance(kw, list))
+        st.markdown(f"""
+        <div class='mini-metric'>
+            <span class='icon'>🔤</span>
+            <div class='value'>{total_keywords:,}</div>
+            <div class='label'>Total Keywords</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_m4:
+        long_tail_pct = (queries['query_length'] >= 20).mean() * 100
+        st.markdown(f"""
+        <div class='mini-metric'>
+            <span class='icon'>📈</span>
+            <div class='value'>{long_tail_pct:.1f}%</div>
+            <div class='label'>Long-tail Queries</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Two-column layout for main analysis
+    col_left, col_right = st.columns([3, 2])
+    
+    with col_left:
+        # Enhanced Keyword Analysis
+        st.subheader("🔤 Keyword Frequency & Performance Analysis")
+        
+        # Process keywords safely
+        kw_series = queries['keywords'].explode().dropna()
+        if kw_series.empty:
+            st.warning("No keywords found in the dataset.")
+        else:
+            kw_counts = kw_series.value_counts().reset_index()
+            kw_counts.columns = ['keyword', 'frequency']
+            
+            # Create keyword performance data
+            keyword_performance = []
+            for keyword in kw_counts['keyword'].head(50):  # Top 50 keywords
+                keyword_queries = queries[queries['keywords'].apply(lambda x: keyword in x if isinstance(x, list) else False)]
+                if not keyword_queries.empty:
+                    performance = {
+                        'keyword': keyword,
+                        'frequency': len(keyword_queries),
+                        'total_counts': keyword_queries['Counts'].sum(),
+                        'total_clicks': keyword_queries['clicks'].sum(),
+                        'total_conversions': keyword_queries['conversions'].sum(),
+                        'avg_ctr': (keyword_queries['clicks'].sum() / keyword_queries['Counts'].sum() * 100) if keyword_queries['Counts'].sum() > 0 else 0,
+                        'avg_cr': (keyword_queries['conversions'].sum() / keyword_queries['clicks'].sum() * 100) if keyword_queries['clicks'].sum() > 0 else 0
+                    }
+                    keyword_performance.append(performance)
+            
+            kw_perf_df = pd.DataFrame(keyword_performance)
+            
+            if not kw_perf_df.empty:
+                # Enhanced keyword visualization
+                fig_kw = px.scatter(
+                    kw_perf_df.head(30), 
+                    x='frequency', 
+                    y='avg_ctr',
+                    size='total_counts',
+                    color='avg_cr',
+                    hover_name='keyword',
+                    title='<b style="color:#FF5A6E; font-size:18px;">Keyword Performance Matrix: Frequency vs CTR 🎯</b>',
+                    labels={'frequency': 'Keyword Frequency', 'avg_ctr': 'Average CTR (%)', 'avg_cr': 'Avg CR (%)'},
+                    color_continuous_scale=['#E6F3FA', '#FFB085', '#FF5A6E'],
+                    template='plotly_white'
+                )
+                
+                fig_kw.update_traces(
+                    hovertemplate='<b>%{hovertext}</b><br>' +
+                                 'Frequency: %{x}<br>' +
+                                 'CTR: %{y:.2f}%<br>' +
+                                 'Total Counts: %{marker.size:,.0f}<br>' +
+                                 'Conversion Rate: %{marker.color:.2f}%<extra></extra>'
+                )
+                
+                fig_kw.update_layout(
+                    plot_bgcolor='rgba(255,255,255,0.95)',
+                    paper_bgcolor='rgba(255,247,232,0.8)',
+                    font=dict(color='#0B486B', family='Segoe UI'),
+                    title_x=0,
+                    xaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
+                    yaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
+                    annotations=[
+                        dict(
+                            x=0.95, y=0.95, xref='paper', yref='paper',
+                            text='💡 Size = Total Counts | Color = Conversion Rate',
+                            showarrow=False,
+                            font=dict(size=11, color='#0B486B'),
+                            align='right'
+                        )
+                    ]
+                )
+                
+                st.plotly_chart(fig_kw, use_container_width=True)
+                
+                # Top performing keywords table
+                st.subheader("🏆 Top Performing Keywords")
+                top_keywords = kw_perf_df.sort_values('total_counts', ascending=False).head(15)
+                
+                # Format the dataframe for display
+                display_kw = top_keywords.copy()
+                display_kw['total_counts'] = display_kw['total_counts'].apply(lambda x: f"{x:,.0f}")
+                display_kw['total_clicks'] = display_kw['total_clicks'].apply(lambda x: f"{x:,.0f}")
+                display_kw['total_conversions'] = display_kw['total_conversions'].apply(lambda x: f"{x:,.0f}")
+                display_kw['avg_ctr'] = display_kw['avg_ctr'].apply(lambda x: f"{x:.2f}%")
+                display_kw['avg_cr'] = display_kw['avg_cr'].apply(lambda x: f"{x:.2f}%")
+                
+                display_kw = display_kw.rename(columns={
+                    'keyword': 'Keyword',
+                    'frequency': 'Frequency',
+                    'total_counts': 'Total Counts',
+                    'total_clicks': 'Total Clicks',
+                    'total_conversions': 'Conversions',
+                    'avg_ctr': 'Avg CTR',
+                    'avg_cr': 'Avg CR'
+                })
+                
+                styled_keywords = display_kw.style.set_properties(**{
+                    'text-align': 'center',
+                    'font-size': '13px'
+                }).background_gradient(subset=['Frequency'], cmap='Blues', alpha=0.3)
+                
+                st.dataframe(styled_keywords, use_container_width=True)
+    
+    with col_right:
+        # Word Cloud (Enhanced)
+        if WORDCLOUD_OK and not kw_counts.empty:
+            st.subheader("🌟 Keyword Cloud Visualization")
+            try:
+                freqs = dict(zip(kw_counts['keyword'].head(100), kw_counts['frequency'].head(100)))
+                wc = WordCloud(
+                    width=500, 
+                    height=300, 
+                    background_color='rgba(255,247,232,0.8)',
+                    colormap='plasma',
+                    collocations=False, 
+                    max_words=80,
+                    relative_scaling=0.5,
+                    min_font_size=8
+                ).generate_from_frequencies(freqs)
+                
+                fig_wc, ax_wc = plt.subplots(figsize=(8, 5))
+                ax_wc.imshow(wc, interpolation='bilinear')
+                ax_wc.axis('off')
+                ax_wc.set_facecolor('rgba(255,247,232,0.8)')
+                fig_wc.patch.set_facecolor('rgba(255,247,232,0.8)')
+                st.pyplot(fig_wc, use_container_width=True)
+                plt.close(fig_wc)
+            except Exception as e:
+                st.error(f"Error generating word cloud: {e}")
+        else:
+            if not WORDCLOUD_OK:
+                st.info("💡 Install 'wordcloud' and 'matplotlib' for enhanced visualizations")
+        
+        # Query Length Distribution
+        st.subheader("📊 Query Length Analysis")
+        length_dist = queries.groupby('query_length').size().reset_index(name='count')
+        length_dist = length_dist.sort_values('query_length')
+        
+        fig_length = px.histogram(
+            queries, 
+            x='query_length', 
+            nbins=30,
+            title='<b style="color:#FF5A6E;">Query Length Distribution</b>',
+            labels={'query_length': 'Character Length', 'count': 'Number of Queries'},
+            color_discrete_sequence=['#FF8A7A']
+        )
+        
+        fig_length.update_layout(
+            plot_bgcolor='rgba(255,255,255,0.95)',
+            paper_bgcolor='rgba(255,247,232,0.8)',
+            font=dict(color='#0B486B', family='Segoe UI'),
+            bargap=0.1,
+            xaxis=dict(showgrid=True, gridcolor='#E6F3FA'),
+            yaxis=dict(showgrid=True, gridcolor='#E6F3FA')
+        )
+        
+        st.plotly_chart(fig_length, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # Advanced Analytics Section
+    st.subheader("📈 Advanced Query Performance Analytics")
+    
+    # Three-column layout for advanced metrics
+    adv_col1, adv_col2, adv_col3 = st.columns(3)
+    
+    with adv_col1:
+        st.markdown("**🎯 Query Length vs Performance**")
+        ql_analysis = queries.groupby('query_length').agg({
+            'Counts': 'sum', 
+            'clicks': 'sum',
+            'conversions': 'sum'
+        }).reset_index()
+        ql_analysis['ctr'] = ql_analysis.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+        ql_analysis['cr'] = ql_analysis.apply(lambda r: (r['conversions']/r['clicks']*100) if r['clicks']>0 else 0, axis=1)
+        
+        if not ql_analysis.empty:
+            fig_ql = px.scatter(
+                ql_analysis, 
+                x='query_length', 
+                y='ctr', 
+                size='Counts',
+                color='cr',
+                title='Length vs CTR Performance',
+                color_continuous_scale=['#E6F3FA', '#FF8A7A'],
+                template='plotly_white'
+            )
+            
+            fig_ql.update_layout(
+                plot_bgcolor='rgba(255,255,255,0.95)',
+                paper_bgcolor='rgba(255,247,232,0.8)',
+                font=dict(color='#0B486B', family='Segoe UI', size=10),
+                height=300,
+                xaxis=dict(showgrid=True, gridcolor='#E6F3FA'),
+                yaxis=dict(showgrid=True, gridcolor='#E6F3FA')
+            )
+            
+            st.plotly_chart(fig_ql, use_container_width=True)
+    
+    with adv_col2:
+        st.markdown("**📊 Long-tail vs Short-tail Performance**")
+        queries['is_long_tail'] = queries['query_length'] >= 20
+        lt_analysis = queries.groupby('is_long_tail').agg({
+            'Counts': 'sum', 
+            'clicks': 'sum',
+            'conversions': 'sum'
+        }).reset_index()
+        lt_analysis['label'] = lt_analysis['is_long_tail'].map({
+            True: 'Long-tail (≥20 chars)', 
+            False: 'Short-tail (<20 chars)'
+        })
+        lt_analysis['ctr'] = lt_analysis.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+        
+        if not lt_analysis.empty:
+            fig_lt = px.bar(
+                lt_analysis, 
+                x='label', 
+                y='Counts',
+                color='ctr',
+                title='Traffic: Long-tail vs Short-tail',
+                color_continuous_scale=['#E6F3FA', '#FF5A6E'],
+                text='Counts'
+            )
+            
+            fig_lt.update_traces(
+                texttemplate='%{text:,.0f}',
+                textposition='outside'
+            )
+            
+            fig_lt.update_layout(
+                plot_bgcolor='rgba(255,255,255,0.95)',
+                paper_bgcolor='rgba(255,247,232,0.8)',
+                font=dict(color='#0B486B', family='Segoe UI', size=10),
+                height=300,
+                xaxis=dict(showgrid=True, gridcolor='#E6F3FA'),
+                yaxis=dict(showgrid=True, gridcolor='#E6F3FA')
+            )
+            
+            st.plotly_chart(fig_lt, use_container_width=True)
+    
+    with adv_col3:
+        st.markdown("**🔍 Search Intent Analysis**")
+        # Create search intent categories based on keywords
+        intent_mapping = {
+            'buy': ['buy', 'purchase', 'order', 'shop'],
+            'compare': ['vs', 'versus', 'compare', 'difference', 'better'],
+            'info': ['what', 'how', 'why', 'when', 'where'],
+            'brand': ['brand', 'reviews', 'rating', 'best']
+        }
+        
+        def classify_intent(keywords_list):
+            if not isinstance(keywords_list, list):
+                return 'other'
+            keywords_str = ' '.join(keywords_list).lower()
+            for intent, intent_keywords in intent_mapping.items():
+                if any(kw in keywords_str for kw in intent_keywords):
+                    return intent
+            return 'other'
+        
+        queries['search_intent'] = queries['keywords'].apply(classify_intent)
+        intent_analysis = queries.groupby('search_intent').agg({
+            'Counts': 'sum',
+            'clicks': 'sum',
+            'conversions': 'sum'
+        }).reset_index()
+        intent_analysis['ctr'] = intent_analysis.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+        
+        if not intent_analysis.empty:
+            fig_intent = px.pie(
+                intent_analysis, 
+                names='search_intent', 
+                values='Counts',
+                title='Search Intent Distribution',
+                color_discrete_sequence=['#FF5A6E', '#FFB085', '#E6F3FA', '#FF8A7A', '#FFF7E8']
+            )
+            
+            fig_intent.update_layout(
+                font=dict(color='#0B486B', family='Segoe UI', size=10),
+                height=300
+            )
+            
+            st.plotly_chart(fig_intent, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # Query Performance Insights Table
+    st.subheader("📋 Detailed Query Performance Analysis")
+    
+    # Create comprehensive query analysis
+    query_analysis = queries.groupby('normalized_query').agg({
+        'Counts': 'sum',
+        'clicks': 'sum', 
+        'conversions': 'sum',
+        'query_length': 'first'
+    }).reset_index()
+    
+    query_analysis['ctr'] = query_analysis.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+    query_analysis['cr'] = query_analysis.apply(lambda r: (r['conversions']/r['clicks']*100) if r['clicks']>0 else 0, axis=1)
+    query_analysis['is_long_tail'] = query_analysis['query_length'] >= 20
+    query_analysis['performance_score'] = (query_analysis['ctr'] * 0.6 + query_analysis['cr'] * 0.4).round(2)
+    
+    # Sort by performance score and get top performers
+    top_performers = query_analysis.sort_values('performance_score', ascending=False).head(20)
+    
+    # Format for display
+    display_analysis = top_performers.copy()
+    display_analysis['Counts'] = display_analysis['Counts'].apply(lambda x: f"{x:,.0f}")
+    display_analysis['clicks'] = display_analysis['clicks'].apply(lambda x: f"{x:,.0f}")
+    display_analysis['conversions'] = display_analysis['conversions'].apply(lambda x: f"{x:,.0f}")
+    display_analysis['ctr'] = display_analysis['ctr'].apply(lambda x: f"{x:.2f}%")
+    display_analysis['cr'] = display_analysis['cr'].apply(lambda x: f"{x:.2f}%")
+    display_analysis['is_long_tail'] = display_analysis['is_long_tail'].map({True: '✅', False: '❌'})
+    
+    display_analysis = display_analysis.rename(columns={
+        'normalized_query': 'Search Query',
+        'Counts': 'Total Searches',
+        'clicks': 'Clicks',
+        'conversions': 'Conversions',
+        'ctr': 'CTR',
+        'cr': 'CR',
+        'query_length': 'Length',
+        'is_long_tail': 'Long-tail',
+        'performance_score': 'Score'
+    })
+    
+    # Display with enhanced styling
+    styled_analysis = display_analysis[['Search Query', 'Total Searches', 'Clicks', 'Conversions', 'CTR', 'CR', 'Length', 'Long-tail', 'Score']].style.format({
+        'Score': '{:.2f}'
+    }).set_properties(**{
+        'text-align': 'center',
+        'font-size': '12px'
+    }).background_gradient(subset=['Score'], cmap='RdYlGn', alpha=0.4)
+    
+    st.dataframe(styled_analysis, use_container_width=True)
+    
+    # Download functionality
+    csv_analysis = query_analysis.to_csv(index=False)
+    st.download_button(
+        label="📥 Download Query Analysis CSV",
+        data=csv_analysis,
+        file_name="query_performance_analysis.csv",
+        mime="text/csv"
+    )
+    
+    # Key Insights Box
+    st.markdown("---")
+    col_insight1, col_insight2 = st.columns(2)
+    
+    with col_insight1:
+        st.markdown("""
+        <div class='insight-box'>
+            <h4>🎯 Key Insights</h4>
+            <p>• Long-tail queries represent {:.1f}% of total traffic<br>
+            • Average query length is {:.1f} characters<br>
+            • Top keyword appears in {:.1f}% of searches</p>
+        </div>
+        """.format(
+            long_tail_pct,
+            avg_query_length,
+            (kw_counts.iloc[0]['frequency'] / len(queries) * 100) if not kw_counts.empty else 0
+        ), unsafe_allow_html=True)
+    
+    with col_insight2:
+        st.markdown("""
+        <div class='insight-box'>
+            <h4>💡 Recommendations</h4>
+            <p>• Focus on high-performing keywords for content optimization<br>
+            • Analyze long-tail queries for niche opportunities<br>
+            • Monitor search intent patterns for strategy alignment</p>
+        </div>
+        """, unsafe_allow_html=True)
 # ----------------- Brand Tab -----------------
 with tab_brand:
     st.header("🏷 Brand Insights")
