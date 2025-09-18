@@ -1120,7 +1120,7 @@ with tab_search:
     
     # Hero Image for Search Tab
     search_image_options = {
-        "Search Analytics Focus": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Keyword+Performance+Hub"",
+        "Search Analytics Focus": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Keyword+Performance+Hub",
         "Data Visualization": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=Search+Query+Intelligence",
     }
     selected_search_image = st.sidebar.selectbox("Choose Search Tab Hero", options=list(search_image_options.keys()), index=0, key="search_hero")
