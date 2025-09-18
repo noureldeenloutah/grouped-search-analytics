@@ -675,33 +675,30 @@ with tab_overview:
                 st.error(f"Error processing top 50 queries: {e}")
 
     st.markdown("---")
+# ----------------- Performance Snapshot -----------------
     st.subheader("📊 Performance Snapshot")
 
-
-    # Ensure columns exist and are numeric
-    if not all(col in queries.columns for col in ['Counts', 'clicks']):
-        st.error("Required columns ('Counts', 'clicks') not found in dataset.")
+    # Ensure columns exist before calculations
+    required_cols_ps = ['Counts', 'clicks']
+    if not all(col in queries.columns for col in required_cols_ps):
+        st.error(f"Required columns {required_cols_ps} not found in dataset.")
         st.stop()
 
-    # Calculate metrics with error handling
+    # Calculate metrics with error handling (dynamic, updates with filters)
     total_counts = int(queries['Counts'].sum()) if not queries['Counts'].empty else 0
     total_clicks = int(queries['clicks'].sum()) if not queries['clicks'].empty else 0
 
-    if 'Conversion Rate' in queries.columns:
+    # Use 'conversions' column primarily for consistency with KPI Cards; fallback to Conversion Rate
+    if 'conversions' in queries.columns:
+        total_conv_safe = int(queries['conversions'].sum()) if not queries['conversions'].empty else 0
+    elif 'Conversion Rate' in queries.columns:
         queries['Conversion Rate'] = pd.to_numeric(queries['Conversion Rate'], errors='coerce').fillna(0)
         total_conv_safe = int((queries['clicks'] * queries['Conversion Rate']).sum())
     else:
-        total_conv_safe = int((queries['clicks'] * 0).sum())  # Default to 0 conversion rate
+        total_conv_safe = 0  # Default to 0 if neither column exists
 
     overall_ctr = (total_clicks / total_counts * 100) if total_counts > 0 else 0
     overall_cr = (total_conv_safe / total_clicks * 100) if total_clicks > 0 else 0
-
-    # Assign provided values
-    total_counts = 2_325_638
-    total_clicks = 410_105
-    total_conv_safe = 76_879
-    overall_ctr = 17.63
-    overall_cr = 18.75
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
