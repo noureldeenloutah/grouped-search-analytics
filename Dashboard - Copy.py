@@ -687,10 +687,68 @@ with tab_overview:
             st.warning("No valid data available for top 50 queries.")
         else:
             try:
-                top50 = queries.nlargest(50, 'Counts')[['search', 'Counts', 'clicks', 'Converion Rate']].rename(columns={'search': 'Query', 'Counts': 'Search Counts'})
-                st.dataframe(top50, use_container_width=True)
+                # Group by 'search' and aggregate
+                top50 = queries.groupby('search').agg({
+                    'Counts': 'sum',
+                    'clicks': 'sum',
+                    'conversions': 'sum'
+                }).reset_index()
+
+                # Calculate total Counts for share percentage
+                total_counts = queries['Counts'].sum()
+
+                # Calculate weighted average Conversion Rate
+                if 'Conversion Rate' in queries.columns:
+                    total_clicks_by_query = queries.groupby('search')['clicks'].sum()
+                    total_conversions_by_query = queries.groupby('search')['conversions'].sum()
+                    top50['Conversion Rate'] = (total_conversions_by_query / total_clicks_by_query * 100).round(2).fillna(0).replace([float('inf'), -float('inf')], 0)
+
+                # Calculate share percentage
+                top50['Share %'] = (top50['Counts'] / total_counts * 100).round(2)
+
+                # Sort by 'Counts' and get top 50
+                top50 = top50.nlargest(50, 'Counts')
+
+                # Rename columns for display and format
+                top50 = top50.rename(columns={
+                    'search': 'Query',
+                    'Counts': 'Search Counts',
+                    'clicks': 'Clicks',
+                    'conversions': 'Conversions'
+                })
+
+                # Round up clicks and format Conversion Rate as percentage
+                top50['Clicks'] = top50['Clicks'].round().astype(int)
+                top50['Conversion Rate'] = top50['Conversion Rate'].astype(str) + '%'
+
+                # Format Search Counts with commas
+                top50['Search Counts'] = top50['Search Counts'].apply(lambda x: f"{x:,.0f}")
+
+                # Center-align all values using Styler
+                styled_top50 = top50.style.set_properties(**{
+                    'text-align': 'center',
+                    'font-size': '14px'
+                }).format({
+                    'Search Counts': '{}',
+                    'Clicks': '{:,.0f}',
+                    'Conversions': '{:,.0f}',
+                    'Share %': '{:.2f}%',
+                    'Conversion Rate': '{}'
+                })
+
+                # Display the DataFrame
+                st.dataframe(styled_top50, use_container_width=True)
+
+                # Add download button
+                csv = top50.to_csv(index=False)
+                st.download_button(
+                    label="Download Table as CSV",
+                    data=csv,
+                    file_name="top_50_queries.csv",
+                    mime="text/csv"
+                )
             except KeyError as e:
-                st.error(f"Column error: {e}. Check column names in your data.")
+                st.error(f"Column error: {e}. Check column names in your data (e.g., 'search', 'Counts', 'clicks', 'conversions', 'Conversion Rate').")
             except Exception as e:
                 st.error(f"Error processing top 50 queries: {e}")
 
