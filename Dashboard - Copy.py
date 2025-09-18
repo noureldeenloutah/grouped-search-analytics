@@ -71,9 +71,8 @@ body {
     padding: 20px;
     border-radius: 12px;
     margin-bottom: 20px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     text-align: center;
-    animation: fadeIn 1s ease-in;
 }
 .welcome-box h2 {
     color: #FF5A6E;
@@ -84,10 +83,6 @@ body {
     color: #0B486B;
     font-size: 1rem;
 }
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
 
 /* KPI card */
 .kpi {
@@ -97,7 +92,6 @@ body {
     text-align: center;
     box-shadow: 0 6px 14px rgba(0,0,0,0.08);
     transition: transform 0.2s, box-shadow 0.2s;
-    position: relative;
 }
 .kpi:hover {
     transform: translateY(-6px);
@@ -111,26 +105,6 @@ body {
 .kpi .label {
     color: #6C7A89;
     font-size: 0.95rem;
-}
-.kpi::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    background: #0B486B;
-    color: #FFFFFF;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 0.8rem;
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-    z-index: 10;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-}
-.kpi:hover::after {
-    opacity: 1;
 }
 
 /* Insight box */
@@ -205,7 +179,6 @@ body {
     background: #FFFFFF;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
-
 /* Mini Metric Card */
 .mini-metric {
     background: linear-gradient(90deg, #FF5A6E, #FFB085);
@@ -242,38 +215,6 @@ body {
     margin-bottom: 6px;
     display: block;
 }
-
-/* New Classes */
-.overview-section {
-    background: linear-gradient(135deg, #FFF7E8, #FFEFEF);
-    padding: 20px;
-    border-radius: 15px;
-    margin-bottom: 20px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.1);
-}
-
-.chart-container {
-    border: 2px solid #FF5A6E;
-    border-radius: 12px;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.chart-container:hover {
-    box-shadow: 0 6px 16px rgba(255, 90, 110, 0.2);
-}
-
-.highlight {
-    color: #FF5A6E;
-    font-weight: 900;
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
-}
-
-@media (max-width: 600px) {
-    .main-header { font-size: 1.8rem; }
-    .kpi .value { font-size: 1.2rem; }
-    .mini-metric { height: 80px; }
-}l
 </style>
 """, unsafe_allow_html=True)
 
@@ -551,14 +492,15 @@ with tab_overview:
     # Hero Image (Creative UI) with selected option
     st.image(image_options[selected_image], use_container_width=True)
 
-        colA, colB = st.columns([2, 1])
+    colA, colB = st.columns([2, 1])
     with colA:
+        # Counts over Months as a single creative comparison chart
         monthly_counts = queries.groupby(queries['Date'].dt.strftime('%b %Y'))['Counts'].sum().reset_index()
         if not monthly_counts.empty and len(monthly_counts) >= 2:
             fig = px.area(monthly_counts, x='Date', y='Counts', title='<b style="color:#FF5A6E; text-shadow: 2px 2px 4px #00000055;">Counts Over Months: 2025 Trends Unleashed! 🌟</b>',
-                        labels={'Date': 'Month', 'Counts': 'Search Counts'},
-                        color_discrete_sequence=['#FF5A6E', '#FFB085', '#E6F3FA'],
-                        template='plotly_dark')
+                          labels={'Date': 'Month', 'Counts': 'Search Counts'},
+                          color_discrete_sequence=['#FF5A6E', '#FFB085', '#E6F3FA'],
+                          template='plotly_dark')
             fig.update_traces(fill='tonexty', mode='lines+markers', line=dict(width=2), marker=dict(size=8))
             fig.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
@@ -567,24 +509,23 @@ with tab_overview:
                 title_x=0.5,
                 xaxis_title="<i>Time Journey</i>",
                 yaxis_title="<b>Search Volume</b>",
-                annotations=[dict(
-                    x=monthly_counts['Date'].iloc[-1],
-                    y=monthly_counts['Counts'].iloc[-1],
-                    xref="x", yref="y",
-                    text=f"Peak: {monthly_counts['Counts'].max():,.0f}",
-                    showarrow=True,
-                    arrowhead=2,
-                    ax=20,
-                    ay=-30,
-                    font=dict(size=12, color="#FF5A6E")
-                )]
+                annotations=[
+                    dict(
+                        x=monthly_counts['Date'].iloc[-1],
+                        y=monthly_counts['Counts'].iloc[-1],
+                        xref="x", yref="y",
+                        text=f"Peak: {monthly_counts['Counts'].max():,.0f}",
+                        showarrow=True,
+                        arrowhead=2,
+                        ax=20,
+                        ay=-30,
+                        font=dict(size=12, color="#FF5A6E")
+                    )
+                ]
             )
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("📅 Add more date range for monthly trends. Sample: Q4 2025 shows INTIMATE CARE spike.")
-
 
     with colB:
         st.markdown("**Top 50 Queries (Counts)**")
