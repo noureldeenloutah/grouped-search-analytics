@@ -551,65 +551,34 @@ with tab_overview:
     # Hero Image (Creative UI) with selected option
     st.image(image_options[selected_image], use_container_width=True)
 
-    colA, colB = st.columns([2, 1])
+        colA, colB = st.columns([2, 1])
     with colA:
-        # Counts over Months as a creative bar chart with labels and percentages
         monthly_counts = queries.groupby(queries['Date'].dt.strftime('%b %Y'))['Counts'].sum().reset_index()
         if not monthly_counts.empty and len(monthly_counts) >= 2:
-            total_all_months = monthly_counts['Counts'].sum()
-            monthly_counts['Percentage'] = (monthly_counts['Counts'] / total_all_months * 100).round(1)
-            
-            # Create a beautiful bar chart with text labels
-            fig = px.bar(monthly_counts, x='Date', y='Counts', 
-                        title='<b style="color:#FF5A6E; font-size:18px; text-shadow: 2px 2px 4px #00000055;">Counts Over Months: 2025 Trends at a Glance! 🌟</b>',
-                        labels={'Date': '<i>Month</i>', 'Counts': '<b>Search Counts</b>'},
-                        color='Counts',
-                        color_continuous_scale=['#E6F3FA', '#FFB085', '#FF5A6E'],  # Gradient from light to pink
-                        template='plotly_white',
-                        text='Counts',  # Show counts on bars
-                        textposition='outside')
-            
-            # Add percentage as secondary text
-            fig.update_traces(texttemplate='%{text:,}<br>%{customdata:.1f}%', 
-                            customdata=monthly_counts['Percentage'],
-                            textposition='outside')
-            
-            # Enhance attractiveness: Custom layout for beauty
+            fig = px.area(monthly_counts, x='Date', y='Counts', title='<b style="color:#FF5A6E; text-shadow: 2px 2px 4px #00000055;">Counts Over Months: 2025 Trends Unleashed! 🌟</b>',
+                        labels={'Date': 'Month', 'Counts': 'Search Counts'},
+                        color_discrete_sequence=['#FF5A6E', '#FFB085', '#E6F3FA'],
+                        template='plotly_dark')
+            fig.update_traces(fill='tonexty', mode='lines+markers', line=dict(width=2), marker=dict(size=8))
             fig.update_layout(
-                plot_bgcolor='rgba(255,255,255,0.95)',
-                paper_bgcolor='rgba(255,247,232,0.8)',  # Subtle gradient background
-                font=dict(color='#0B486B', family='Segoe UI'),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#FFFFFF'),
                 title_x=0.5,
-                title_font_size=16,
-                xaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
-                yaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
-                bargap=0.2,  # Gap between bars for elegance
-                barcornerradius=8,  # Rounded bar corners
-                hovertemplate='<b>%{x}</b><br>Counts: %{y:,.0f}<br>Share: %{customdata:.1f}%<extra></extra>',
-                annotations=[
-                    dict(
-                        x=0.5, y=1.05, xref='paper', yref='paper',
-                        text='✨ Hover for details | Peak month highlighted below ✨',
-                        showarrow=False,
-                        font=dict(size=10, color='#FF5A6E', family='Segoe UI'),
-                        align='center'
-                    )
-                ]
+                xaxis_title="<i>Time Journey</i>",
+                yaxis_title="<b>Search Volume</b>",
+                annotations=[dict(
+                    x=monthly_counts['Date'].iloc[-1],
+                    y=monthly_counts['Counts'].iloc[-1],
+                    xref="x", yref="y",
+                    text=f"Peak: {monthly_counts['Counts'].max():,.0f}",
+                    showarrow=True,
+                    arrowhead=2,
+                    ax=20,
+                    ay=-30,
+                    font=dict(size=12, color="#FF5A6E")
+                )]
             )
-            
-            # Highlight the peak month with a custom marker or annotation
-            peak_month = monthly_counts.loc[monthly_counts['Counts'].idxmax(), 'Date']
-            peak_value = monthly_counts['Counts'].max()
-            fig.add_annotation(
-                x=peak_month, y=peak_value,
-                text=f"🏆 Peak: {peak_value:,.0f}",
-                showarrow=True,
-                arrowhead=3,
-                arrowcolor='#FF5A6E',
-                ax=0, ay=-30,
-                font=dict(size=12, color='#FF5A6E', family='Segoe UI', bold=True)
-            )
-            
             st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
