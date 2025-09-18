@@ -493,7 +493,7 @@ with tab_overview:
     st.image(image_options[selected_image], use_container_width=True)
 
     colA, colB = st.columns([2, 1])
-        with colA:
+    with colA:
         # Counts over Months as a creative bar chart with labels and percentages
         monthly_counts = queries.groupby(queries['Date'].dt.strftime('%b %Y'))['Counts'].sum().reset_index()
         if not monthly_counts.empty and len(monthly_counts) >= 2:
