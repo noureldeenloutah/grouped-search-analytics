@@ -920,28 +920,88 @@ with tab_overview:
     g1, g2 = st.columns(2)
     with g1:
         if 'Brand' in queries.columns:
-            brand_perf = queries[queries['Brand'] != 'Other'].groupby('Brand').agg({'Counts': 'sum', 'clicks': 'sum', 'Converion Rate': 'mean'}).reset_index()
-            brand_perf['conversions'] = (brand_perf['clicks'] * brand_perf['Converion Rate']).round()
+            brand_perf = queries[queries['Brand'] != 'Other'].groupby('Brand').agg({'Counts': 'sum', 'clicks': 'sum', 'Conversion Rate': 'mean'}).reset_index()
+            brand_perf['conversions'] = (brand_perf['clicks'] * brand_perf['Conversion Rate']).round()
             brand_perf['share'] = (brand_perf['Counts'] / total_counts * 100).round(2)
             fig = px.bar(brand_perf.sort_values('Counts', ascending=False).head(10), 
-                         x='Brand', y='Counts', title='Top Brands by Counts (e.g., Sofy Leads @614,606 Full)',
-                         color='conversions', color_continuous_scale='Viridis', hover_data=['share'])
+                        x='Brand', y='Counts', 
+                        title='<b style="color:#4A90E2; font-size:18px; text-shadow: 2px 2px 4px #00000055;">Top Brands by Counts (e.g., Sofy Leads @614,606 Full)</b>',
+                        color='conversions', color_continuous_scale='Blues', hover_data=['share', 'conversions'])
+            
+            # Enhance attractiveness: Custom layout
+            fig.update_layout(
+                plot_bgcolor='rgba(255, 255, 245, 0.95)',
+                paper_bgcolor='rgba(240, 248, 255, 0.8)',
+                font=dict(color='#1A3C5E', family='Arial'),
+                title_x=0,  # Left alignment for title
+                title_font_size=16,
+                xaxis=dict(
+                    title='Brand',
+                    showgrid=True, 
+                    gridcolor='rgba(200, 220, 240, 0.5)', 
+                    linecolor='#4A90E2', 
+                    linewidth=2
+                ),
+                yaxis=dict(
+                    title='Search Counts',
+                    showgrid=True, 
+                    gridcolor='rgba(200, 220, 240, 0.5)', 
+                    linecolor='#4A90E2', 
+                    linewidth=2
+                ),
+                bargap=0.2,
+                barcornerradius=8,
+                hovermode='x unified',
+                annotations=[
+                    dict(
+                        x=0.5, y=1.05, xref='paper', yref='paper',
+                        text='✨ Hover for details | Top brand highlighted below ✨',
+                        showarrow=False,
+                        font=dict(size=10, color='#4A90E2', family='Arial'),
+                        align='center'
+                    )
+                ]
+            )
+
+            # Highlight the top brand with a custom marker
+            top_brand = brand_perf.loc[brand_perf['Counts'].idxmax(), 'Brand']
+            top_count = brand_perf['Counts'].max()
+            fig.add_annotation(
+                x=top_brand, y=top_count,
+                text=f"🏆 Peak: {top_count:,.0f}",
+                showarrow=True,
+                arrowhead=3,
+                arrowcolor='#4A90E2',
+                ax=0, ay=-30,
+                font=dict(size=12, color='#4A90E2', family='Arial', weight='bold')
+            )
+
+            # Update hover template for better readability
+            fig.update_traces(
+                hovertemplate='<b>%{x}</b><br>Counts: %{y:,.0f}<br>Share: %{customdata[0]:.2f}%<br>Conversions: %{customdata[1]:,.0f}<extra></extra>'
+            )
+
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("🏷 Brand data ready from sheet.")
+
     with g2:
         if 'Category' in queries.columns:
-            cat_perf = queries.groupby('Category').agg({'Counts': 'sum', 'clicks': 'sum', 'Converion Rate': 'mean'}).reset_index()
-            cat_perf['conversions'] = (cat_perf['clicks'] * cat_perf['Converion Rate']).round()
+            cat_perf = queries.groupby('Category').agg({'Counts': 'sum', 'clicks': 'sum', 'Conversion Rate': 'mean'}).reset_index()
+            cat_perf['conversions'] = (cat_perf['clicks'] * cat_perf['Conversion Rate']).round()
             cat_perf['share'] = (cat_perf['Counts'] / total_counts * 100).round(2)
-            cat_perf['cr'] = (cat_perf['conversions'] / cat_perf['clicks'] * 100).round(2) if cat_perf['clicks'].sum() > 0 else 0
+            cat_perf['cr'] = (cat_perf['conversions'] / cat_perf['Counts'] * 100).round(2) if cat_perf['Counts'].sum() > 0 else 0
             st.markdown("**Top Categories by Counts**")
             if AGGRID_OK:
                 AgGrid(cat_perf.sort_values('Counts', ascending=False).head(10), height=300, enable_enterprise_modules=False)
             else:
-                st.dataframe(cat_perf[['Category', 'Counts', 'clicks', 'conversions', 'cr', 'share']].head(10).style.format({
-                    'Counts': '{:,.0f}', 'clicks': '{:,.0f}', 'conversions': '{:,.0f}', 'cr': '{:.2f}%', 'share': '{:.2f}%'
-                }), use_container_width=True)
+                styled_cat_perf = cat_perf[['Category', 'Counts', 'share', 'clicks', 'conversions', 'cr']].head(10).style.format({
+                    'Counts': '{:,.0f}', 'share': '{:.2f}%', 'clicks': '{:,.0f}', 'conversions': '{:,.0f}', 'cr': '{:.2f}%'
+                }).set_properties(**{
+                    'text-align': 'center',
+                    'font-size': '14px'
+                })
+                st.dataframe(styled_cat_perf, use_container_width=True)
         else:
             st.info("📦 Category data parsed (e.g., SANITARY CARE).")
 
