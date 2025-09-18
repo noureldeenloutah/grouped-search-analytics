@@ -1255,15 +1255,18 @@ with tab_search:
                 # Top performing keywords table
                 st.subheader("🏆 Top Performing Keywords")
                 top_keywords = kw_perf_df.sort_values('total_counts', ascending=False).head(15)
-                
-                # Format the dataframe for display
+
+                # Create a copy for styling (keep numeric values)
+                styling_kw = top_keywords.copy()
+
+                # Format the dataframe for display AFTER applying styling
                 display_kw = top_keywords.copy()
                 display_kw['total_counts'] = display_kw['total_counts'].apply(lambda x: f"{x:,.0f}")
                 display_kw['total_clicks'] = display_kw['total_clicks'].apply(lambda x: f"{x:,.0f}")
                 display_kw['total_conversions'] = display_kw['total_conversions'].apply(lambda x: f"{x:,.0f}")
                 display_kw['avg_ctr'] = display_kw['avg_ctr'].apply(lambda x: f"{x:.2f}%")
                 display_kw['avg_cr'] = display_kw['avg_cr'].apply(lambda x: f"{x:.2f}%")
-                
+
                 display_kw = display_kw.rename(columns={
                     'keyword': 'Keyword',
                     'frequency': 'Frequency',
@@ -1273,13 +1276,36 @@ with tab_search:
                     'avg_ctr': 'Avg CTR',
                     'avg_cr': 'Avg CR'
                 })
-                
-                styled_keywords = display_kw.style.set_properties(**{
+
+                # Apply styling to the numeric version, then format
+                styled_keywords = styling_kw.style.background_gradient(
+                    subset=['frequency'], 
+                    cmap='Blues', 
+                    alpha=0.3
+                ).format({
+                    'total_counts': '{:,.0f}',
+                    'total_clicks': '{:,.0f}',
+                    'total_conversions': '{:,.0f}',
+                    'avg_ctr': '{:.2f}%',
+                    'avg_cr': '{:.2f}%'
+                }).set_properties(**{
                     'text-align': 'center',
                     'font-size': '13px'
-                }).background_gradient(subset=['Frequency'], cmap='Blues', alpha=0.3)
-                
+                })
+
+                # Rename columns for final display
+                styled_keywords = styled_keywords.relabel_index({
+                    'keyword': 'Keyword',
+                    'frequency': 'Frequency',
+                    'total_counts': 'Total Counts',
+                    'total_clicks': 'Total Clicks',
+                    'total_conversions': 'Conversions',
+                    'avg_ctr': 'Avg CTR',
+                    'avg_cr': 'Avg CR'
+                }, axis=1)
+
                 st.dataframe(styled_keywords, use_container_width=True)
+
     
     with col_right:
         # Word Cloud (Enhanced)
