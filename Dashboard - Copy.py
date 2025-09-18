@@ -495,7 +495,7 @@ with tab_overview:
     colA, colB = st.columns([2, 1])
     with colA:
         # Counts over Months as a creative bar chart with labels and percentages
-        monthly_counts = queries.groupby(queries['Date'].dt.strftime('%b %Y'))['Counts'].sum().reset_index()
+        monthly_counts = queries.groupby(queries['Date'].dt.strftime('%B %Y'))['Counts'].sum().reset_index()  # Use full month name for better alignment
         if not monthly_counts.empty and len(monthly_counts) >= 2:
             # Ensure 'Counts' is numeric and handle NaN
             monthly_counts['Counts'] = pd.to_numeric(monthly_counts['Counts'], errors='coerce').fillna(0)
@@ -525,7 +525,7 @@ with tab_overview:
                     plot_bgcolor='rgba(255,255,255,0.95)',
                     paper_bgcolor='rgba(255,247,232,0.8)',
                     font=dict(color='#0B486B', family='Segoe UI'),
-                    title_x=0,  # Align title to the left
+                    title_x=0,  # Left alignment for title
                     title_font_size=16,
                     xaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
                     yaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
