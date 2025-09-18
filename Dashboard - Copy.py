@@ -270,73 +270,77 @@ def prepare_queries_df(df: pd.DataFrame):
         df['Date'] = pd.NaT
 
     # -------------------------
-    # COUNTS = search counts (5th column in queries_clustered sheet)
+    # COUNTS = search counts (from 'count' column)
     # -------------------------
     if 'count' in df.columns:
         df['Counts'] = pd.to_numeric(df['count'], errors='coerce').fillna(0)
+        st.sidebar.success(f"✅ Using 'count' column for impressions: {df['Counts'].sum():,}")
     else:
         df['Counts'] = 0
+        st.sidebar.warning("❌ No 'count' column found for impressions")
 
     # -------------------------
-    # CLICKS = detect from possible column names
+    # CLICKS = Calculate from Counts * CTR
     # -------------------------
-    possible_clicks_cols = ['clicks', 'Click Count', 'total_clicks']
-    clicks_column = next((c for c in possible_clicks_cols if c in df.columns), None)
-    if clicks_column:
-        df['clicks'] = pd.to_numeric(df[clicks_column], errors='coerce').fillna(0)
+    if 'Click Through Rate' in df.columns and 'count' in df.columns:
+        # Convert CTR to decimal (handle both percentage and decimal formats)
+        ctr = pd.to_numeric(df['Click Through Rate'], errors='coerce').fillna(0)
+        
+        # Auto-detect CTR format
+        if ctr.max() > 1:  # If CTR is in percentage (e.g., 5.2 means 5.2%)
+            ctr_decimal = ctr / 100.0
+        else:  # If CTR is already in decimal (e.g., 0.052)
+            ctr_decimal = ctr
+            
+        # Calculate clicks
+        df['clicks'] = (df['Counts'] * ctr_decimal).round().astype(int)
+        st.sidebar.success(f"✅ Calculated clicks from CTR: {df['clicks'].sum():,}")
     else:
         df['clicks'] = 0
+        st.sidebar.warning("❌ Cannot calculate clicks - missing CTR or count data")
 
     # -------------------------
     # Conversions (clicks × conversion rate)
-    # Handles both "Conversion Rate" and typo "Converion Rate"
     # -------------------------
-    conv_rate_col = None
-    if 'Conversion Rate' in df.columns:
-        conv_rate_col = 'Conversion Rate'
-    elif 'Converion Rate' in df.columns:
-        conv_rate_col = 'Converion Rate'
-
-    if conv_rate_col:
-        conv_rate = pd.to_numeric(df[conv_rate_col], errors='coerce').fillna(0)
-
-        # Auto-detect if rate is fraction (<1) or percent (>1)
-        if conv_rate.max() <= 1:
-            conv_rate = conv_rate  # already fraction
-        else:
-            conv_rate = conv_rate / 100.0  # convert % to fraction
-
-        df['conversions'] = (df['clicks'] * conv_rate).round().astype(int)
+    if 'Converion Rate' in df.columns:
+        # Convert conversion rate to decimal
+        conv_rate = pd.to_numeric(df['Converion Rate'], errors='coerce').fillna(0)
+        
+        # Auto-detect conversion rate format
+        if conv_rate.max() > 1:  # If CR is in percentage
+            conv_rate_decimal = conv_rate / 100.0
+        else:  # If CR is already in decimal
+            conv_rate_decimal = conv_rate
+            
+        df['conversions'] = (df['clicks'] * conv_rate_decimal).round().astype(int)
+        st.sidebar.success(f"✅ Calculated conversions: {df['conversions'].sum():,}")
     else:
         df['conversions'] = 0
+        st.sidebar.warning("❌ No conversion rate data found")
 
     # -------------------------
-    # CTR
+    # CTR (store as percentage for consistency)
     # -------------------------
     if 'Click Through Rate' in df.columns:
         ctr = pd.to_numeric(df['Click Through Rate'], errors='coerce').fillna(0)
-
-        # Auto-detect scale
         if ctr.max() <= 1:
-            df['ctr'] = ctr * 100
+            df['ctr'] = ctr * 100  # Convert to percentage
         else:
-            df['ctr'] = ctr
+            df['ctr'] = ctr  # Already in percentage
     else:
         df['ctr'] = df.apply(
             lambda r: (r['clicks'] / r['Counts']) * 100 if r['Counts'] > 0 else 0, axis=1
         )
 
     # -------------------------
-    # CR
+    # CR (store as percentage for consistency)
     # -------------------------
-    if conv_rate_col:
-        conv_rate = pd.to_numeric(df[conv_rate_col], errors='coerce').fillna(0)
-
-        # Auto-detect scale
-        if conv_rate.max() <= 1:
-            df['cr'] = conv_rate * 100
+    if 'Converion Rate' in df.columns:
+        cr = pd.to_numeric(df['Converion Rate'], errors='coerce').fillna(0)
+        if cr.max() <= 1:
+            df['cr'] = cr * 100  # Convert to percentage
         else:
-            df['cr'] = conv_rate
+            df['cr'] = cr  # Already in percentage
     else:
         df['cr'] = df.apply(
             lambda r: (r['conversions'] / r['clicks']) * 100 if r['clicks'] > 0 else 0,
@@ -370,12 +374,7 @@ def prepare_queries_df(df: pd.DataFrame):
     # Text features
     # -------------------------
     df['query_length'] = df['normalized_query'].astype(str).apply(len)
-
-    try:
-        df['keywords'] = df['normalized_query'].apply(extract_keywords)
-    except NameError:
-        # Fallback if extract_keywords() not defined
-        df['keywords'] = ""
+    df['keywords'] = df['normalized_query'].apply(extract_keywords)
 
     # -------------------------
     # Brand, Category, Subcategory, Department
@@ -395,6 +394,18 @@ def prepare_queries_df(df: pd.DataFrame):
         df['average_click_position'] = df['averageClickPosition']
     if 'cluster_id' in df.columns:
         df['cluster_id'] = df['cluster_id']
+
+    # -------------------------
+    # Keep original columns for reference
+    # -------------------------
+    original_cols = ['Department', 'Category', 'Sub Category', 'Brand', 'search', 'count', 
+                     'Click Through Rate', 'Converion Rate', 'total_impressions over 3m',
+                     'averageClickPosition', 'underperforming', 'classical_cr', 'cluster_id',
+                     'start_date', 'end_date']
+    
+    for col in original_cols:
+        if col in df.columns:
+            df[f'orig_{col}'] = df[col]
 
     return df
 
@@ -498,35 +509,41 @@ st.markdown("""
 st.markdown('<div class="main-header">🔥 Lady Care — Ultimate Search Analytics</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Uncover powerful insights from the <b>search</b> column with vibrant visuals and actionable pivots</div>', unsafe_allow_html=True)
 
+# Calculate metrics
 total_counts = int(queries['Counts'].sum())
 total_clicks = int(queries['clicks'].sum())
-total_conversions = int(queries['conversions'].sum())  # Fixed variable name
-overall_ctr = (queries['clicks'].sum()/queries['Counts'].sum()) * 100 if queries['Counts'].sum()>0 else 0
-overall_cr = (queries['conversions'].sum()/queries['clicks'].sum()) * 100 if queries['clicks'].sum()>0 else 0
-total_revenue = 0.0  # No revenue column
+total_conversions = int(queries['conversions'].sum())
+overall_ctr = (total_clicks / total_counts * 100) if total_counts > 0 else 0
+overall_cr = (total_conversions / total_clicks * 100) if total_clicks > 0 else 0
 
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
-    st.metric("✨ Total Counts", f"{total_counts:,}",
-              help=f"From 'Counts' column (~{total_counts:,} parsed; full: 17M+ in summaries).")
+    st.metric("✨ Total Impressions", f"{total_counts:,}",
+              help="Total search impressions from 'count' column")
 
 with col2:
     st.metric("🖱️ Total Clicks", f"{total_clicks:,}",
-              help="Sum of detected clicks column.")
+              help="Calculated from impressions × CTR")
 
 with col3:
-    st.metric("🎯 Conversions", f"{total_conversions:,}",  # Now using the correct variable
-              help="Based on clicks × conversion rate.")
+    st.metric("🎯 Conversions", f"{total_conversions:,}",
+              help="Calculated from clicks × conversion rate")
 
 with col4:
-    st.metric("📈 Avg CTR", f"{overall_ctr:.2f}%",  # Changed from avg_ctr to overall_ctr
-              help="Click-through rate (auto-scaled).")
+    st.metric("📈 Avg CTR", f"{overall_ctr:.2f}%",
+              help="Overall click-through rate")
 
 with col5:
-    st.metric("⚡ Avg CR", f"{overall_cr:.2f}%",  # Changed from avg_cr to overall_cr
-              help="Conversion rate (auto-scaled).")
+    st.metric("⚡ Avg CR", f"{overall_cr:.2f}%",
+              help="Overall conversion rate")
 
+# Show data source info
+st.sidebar.info(f"**Data Source:** {main_key}")
+st.sidebar.write(f"**Total Rows:** {len(queries):,}")
+st.sidebar.write(f"**Total Impressions:** {total_counts:,}")
+st.sidebar.write(f"**Calculated Clicks:** {total_clicks:,}")
+st.sidebar.write(f"**Calculated Conversions:** {total_conversions:,}")
 
 # ----------------- Tabs -----------------
 tab_overview, tab_search, tab_brand, tab_category, tab_subcat, tab_generic, tab_time, tab_pivot, tab_insights, tab_export = st.tabs([
