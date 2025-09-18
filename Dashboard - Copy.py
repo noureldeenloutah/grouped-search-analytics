@@ -363,7 +363,7 @@ def prepare_queries_df(df: pd.DataFrame, use_derived_metrics: bool = False):
             df['cr'] = cr  # Already in percentage
     else:
         df['cr'] = df.apply(
-            lambda r: (r['conversions'] / r['clicks']) * 100 if r['clicks'] > 0 else 0,
+            lambda r: (r['conversions'] / r['Counts']) * 100 if r['Counts'] > 0 else 0,
             axis=1,
         )
 
