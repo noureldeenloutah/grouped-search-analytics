@@ -681,31 +681,6 @@ with tab_overview:
     total_counts = int(queries['Counts'].sum()) if not queries['Counts'].empty else 0
     total_clicks = int(queries['clicks'].sum()) if not queries['clicks'].empty else 0
 
-
-    # Inject custom CSS to style st.metric like KPI cards
-    st.markdown("""
-    <style>
-    div[data-testid="stMetric"] {
-        background-color: #f0f2f6; /* Adjust to match kpi class background */
-        border-radius: 8px;
-        padding: 16px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        text-align: center;
-        margin: 8px 0;
-    }
-    div[data-testid="stMetric"] [data-testid="stMetricLabel"] {
-        font-size: 14px;
-        color: #333;
-        margin-top: 8px;
-    }
-    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-        font-size: 24px;
-        font-weight: bold;
-        color: #000;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     # Ensure columns are numeric and handle missing data
     if 'Conversion Rate' in queries.columns:
         queries['Conversion Rate'] = pd.to_numeric(queries['Conversion Rate'], errors='coerce').fillna(0)
@@ -727,24 +702,24 @@ with tab_overview:
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        st.metric("✨ Total Counts", f"{total_counts:,}",
-                help=f"From 'Counts' column (~{total_counts:,} parsed; full dataset ~17M+ impressions).")
+        st.markdown(f"<div class='kpi'><div class='value'>{total_counts:,}</div><div class='label'>✨ Total Counts</div></div>", unsafe_allow_html=True)
+        st.caption(f"From 'Counts' column (~{total_counts:,} parsed; full dataset ~17M+ impressions).")
 
     with col2:
-        st.metric("👆 Total Clicks", f"{total_clicks:,}",
-                help="From 'clicks' column (actual user clicks; e.g., 3,802 partial sample).")
+        st.markdown(f"<div class='kpi'><div class='value'>{total_clicks:,}</div><div class='label'>👆 Total Clicks</div></div>", unsafe_allow_html=True)
+        st.caption("From 'clicks' column (actual user clicks; e.g., 3,802 partial sample).")
 
     with col3:
-        st.metric("🎯 Total Conversions", f"{total_conv_safe:,}",
-                help="Derived: clicks × conversion rate (NaN handled; partial ~684).")
+        st.markdown(f"<div class='kpi'><div class='value'>{total_conv_safe:,}</div><div class='label'>🎯 Total Conversions</div></div>", unsafe_allow_html=True)
+        st.caption("Derived: clicks × conversion rate (NaN handled; partial ~684).")
 
     with col4:
-        st.metric("📈 Overall CTR", f"{overall_ctr:.2f}%",
-                help="Clicks ÷ Counts (e.g., 25.9% partial; category highs in FAMILY PLANNING @31.7%).")
+        st.markdown(f"<div class='kpi'><div class='value'>{overall_ctr:.2f}%</div><div class='label'>📈 Overall CTR</div></div>", unsafe_allow_html=True)
+        st.caption("Clicks ÷ Counts (e.g., 25.9% partial; category highs in FAMILY PLANNING @31.7%).")
 
     with col5:
-        st.metric("💡 Overall CR", f"{overall_cr:.2f}%",
-                help="Conversions ÷ Clicks (e.g., 18.0% partial; classical_cr avg 1.0x base).")
+        st.markdown(f"<div class='kpi'><div class='value'>{overall_cr:.2f}%</div><div class='label'>💡 Overall CR</div></div>", unsafe_allow_html=True)
+        st.caption("Conversions ÷ Clicks (e.g., 18.0% partial; classical_cr avg 1.0x base).")
 
 
     # Mini-Metrics Row (Data-Driven: From Analysis with Share)
