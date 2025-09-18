@@ -179,6 +179,7 @@ body {
     background: #FFFFFF;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
+
 /* Mini Metric Card */
 .mini-metric {
     background: linear-gradient(90deg, #FF5A6E, #FFB085);
@@ -260,8 +261,10 @@ def prepare_queries_df(df: pd.DataFrame):
     else:
         df['Date'] = pd.NaT
 
-    # Counts (renamed from impressions)
-    if 'total_impressions over 3m' in df.columns:
+    # Counts (use 'count' column from queries_clustered as primary source)
+    if 'count' in df.columns:
+        df['Counts'] = pd.to_numeric(df['count'], errors='coerce').fillna(0)
+    elif 'total_impressions over 3m' in df.columns:
         df['Counts'] = pd.to_numeric(df['total_impressions over 3m'], errors='coerce').fillna(0)
     else:
         df['Counts'] = 0
@@ -299,7 +302,7 @@ def prepare_queries_df(df: pd.DataFrame):
 
     # Time buckets
     df['year'] = df['Date'].dt.year
-    df['month'] = df['Date'].dt.strftime('%b %Y')
+    df['month'] = df['Date'].dt.strftime('%B %Y')
     df['month_short'] = df['Date'].dt.strftime('%b')
     df['day_of_week'] = df['Date'].dt.day_name()
 
@@ -495,7 +498,8 @@ with tab_overview:
     colA, colB = st.columns([2, 1])
     with colA:
         # Counts over Months as a creative bar chart with labels and percentages
-        monthly_counts = queries.groupby(queries['Date'].dt.strftime('%B %Y'))['Counts'].sum().reset_index()  # Use full month name for better alignment
+        monthly_counts = queries.groupby(queries['Date'].dt.strftime('%B %Y'))['Counts'].sum().reset_index()
+        st.write("Debug - Monthly Counts:", monthly_counts)  # Debug to verify sums
         if not monthly_counts.empty and len(monthly_counts) >= 2:
             # Ensure 'Counts' is numeric and handle NaN
             monthly_counts['Counts'] = pd.to_numeric(monthly_counts['Counts'], errors='coerce').fillna(0)
