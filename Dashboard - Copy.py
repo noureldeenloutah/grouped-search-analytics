@@ -552,7 +552,7 @@ with tab_overview:
                     arrowhead=3,
                     arrowcolor='#FF5A6E',
                     ax=0, ay=-30,
-                    font=dict(size=12, color='#FF5A6E', family='Segoe UI', bold=True)
+                    font=dict(size=12, color='#FF5A6E', family='Segoe UI', weight='bold')  # Changed 'bold' to 'weight': 'bold'
                 )
                 
                 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
