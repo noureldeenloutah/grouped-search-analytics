@@ -534,7 +534,7 @@ total_counts = int(queries['Counts'].sum())
 total_clicks = int(queries['clicks'].sum())
 total_conversions = int(queries['conversions'].sum())
 overall_ctr = (total_clicks / total_counts * 100) if total_counts > 0 else 0
-overall_cr = (total_conversions / total_clicks * 100) if total_clicks > 0 else 0
+overall_cr = (total_conversions / total_counts * 100) if total_clicks > 0 else 0
 total_revenue = 0.0  # No revenue column
 
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -718,7 +718,7 @@ with tab_overview:
         total_conv_safe = 0  # Default to 0 if neither column exists
 
     overall_ctr = (total_clicks / total_counts * 100) if total_counts > 0 else 0
-    overall_cr = (total_conv_safe / total_clicks * 100) if total_clicks > 0 else 0
+    overall_cr = (total_conv_safe / total_counts * 100) if total_clicks > 0 else 0
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
