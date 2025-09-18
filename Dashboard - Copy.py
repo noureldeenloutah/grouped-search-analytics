@@ -517,7 +517,7 @@ with tab_overview:
                     texttemplate='%{text}<br>%{customdata:.1f}%',
                     customdata=monthly_counts['Percentage'],
                     textposition='outside',
-                    hovertemplate='<b>%{x}</b><br>Counts: %{y:,.0f}<br>Share: %{customdata:.1f}%<extra></extra>'  # Moved here
+                    hovertemplate='<b>%{x}</b><br>Counts: %{y:,.0f}<br>Share: %{customdata:.1f}%<extra></extra>'
                 )
                 
                 # Enhance attractiveness: Custom layout for beauty
