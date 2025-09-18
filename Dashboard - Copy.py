@@ -598,7 +598,7 @@ with tab_overview:
     # Image Selection in Sidebar
     st.sidebar.header("🎨 Customize Hero Image")
     image_options = {
-        "Abstract Gradient": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Lady+Care+Insights"",
+        "Abstract Gradient": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Lady+Care+Insights",
         "Nature-Inspired": "https://picsum.photos/1200/250?random=care_nature",
         "Elegant Pink Theme": "https://source.unsplash.com/1200x250/?pink,elegant",
         "Custom Text on Solid Color": "https://placehold.co/1200x250/E6F3FA/FF5A6E?text=✨+Lady+Care+Glow",
