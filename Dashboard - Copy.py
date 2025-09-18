@@ -242,99 +242,153 @@ def extract_keywords(text: str):
     tokens = re.findall(r'[\u0600-\u06FF\w%+\-]+', text)
     return [t.strip().lower() for t in tokens if len(t.strip())>0]
 
+import pandas as pd
+
 def prepare_queries_df(df: pd.DataFrame):
     """Normalize columns, create derived metrics and time buckets."""
     df = df.copy()
     
+    # -------------------------
     # Query text
+    # -------------------------
     if 'search' in df.columns:
         df['normalized_query'] = df['search'].astype(str)
     else:
-        df['normalized_query'] = df.iloc[:,0].astype(str)
+        df['normalized_query'] = df.iloc[:, 0].astype(str)
 
-    # Date
+    # -------------------------
+    # Date normalization
+    # -------------------------
     if 'start_date' in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df['start_date']):
             df['Date'] = df['start_date']
         else:
-            df['Date'] = pd.to_datetime(df['start_date'], unit='D', origin='1899-12-30', errors='coerce')
+            df['Date'] = pd.to_datetime(
+                df['start_date'], unit='D', origin='1899-12-30', errors='coerce'
+            )
     else:
         df['Date'] = pd.NaT
 
-    # Counts (use 'count' column from queries_clustered as primary source)
+    # -------------------------
+    # COUNTS = search counts (5th column in queries_clustered sheet)
+    # -------------------------
     if 'count' in df.columns:
         df['Counts'] = pd.to_numeric(df['count'], errors='coerce').fillna(0)
-    elif 'total_impressions over 3m' in df.columns:
-        df['Counts'] = pd.to_numeric(df['total_impressions over 3m'], errors='coerce').fillna(0)
     else:
         df['Counts'] = 0
 
-    # Clicks
-    if 'count' in df.columns:
-        df['clicks'] = pd.to_numeric(df['count'], errors='coerce').fillna(0)
+    # -------------------------
+    # CLICKS = detect from possible column names
+    # -------------------------
+    possible_clicks_cols = ['clicks', 'Click Count', 'total_clicks']
+    clicks_column = next((c for c in possible_clicks_cols if c in df.columns), None)
+    if clicks_column:
+        df['clicks'] = pd.to_numeric(df[clicks_column], errors='coerce').fillna(0)
     else:
         df['clicks'] = 0
 
-    # Conversions (derived from clicks * conversion rate)
-    if 'Converion Rate' in df.columns and 'count' in df.columns:
-        df['conversions'] = (df['count'] * df['Converion Rate']).round().astype(int)
+    # -------------------------
+    # Conversions (clicks × conversion rate)
+    # Handles both "Conversion Rate" and typo "Converion Rate"
+    # -------------------------
+    conv_rate_col = None
+    if 'Conversion Rate' in df.columns:
+        conv_rate_col = 'Conversion Rate'
+    elif 'Converion Rate' in df.columns:
+        conv_rate_col = 'Converion Rate'
+
+    if conv_rate_col:
+        conv_rate = pd.to_numeric(df[conv_rate_col], errors='coerce').fillna(0)
+
+        # Auto-detect if rate is fraction (<1) or percent (>1)
+        if conv_rate.max() <= 1:
+            conv_rate = conv_rate  # already fraction
+        else:
+            conv_rate = conv_rate / 100.0  # convert % to fraction
+
+        df['conversions'] = (df['clicks'] * conv_rate).round().astype(int)
     else:
         df['conversions'] = 0
 
-    # CTR and CR
+    # -------------------------
+    # CTR
+    # -------------------------
     if 'Click Through Rate' in df.columns:
-        df['ctr'] = pd.to_numeric(df['Click Through Rate'], errors='coerce').fillna(0) * 100
-    else:
-        df['ctr'] = df.apply(lambda r: r['clicks']/r['Counts'] if r['Counts']>0 else 0, axis=1) * 100
-    
-    if 'Converion Rate' in df.columns:
-        df['cr'] = pd.to_numeric(df['Converion Rate'], errors='coerce').fillna(0) * 100
-    else:
-        df['cr'] = df.apply(lambda r: r['conversions']/r['clicks'] if r['clicks']>0 else 0, axis=1) * 100
+        ctr = pd.to_numeric(df['Click Through Rate'], errors='coerce').fillna(0)
 
+        # Auto-detect scale
+        if ctr.max() <= 1:
+            df['ctr'] = ctr * 100
+        else:
+            df['ctr'] = ctr
+    else:
+        df['ctr'] = df.apply(
+            lambda r: (r['clicks'] / r['Counts']) * 100 if r['Counts'] > 0 else 0, axis=1
+        )
+
+    # -------------------------
+    # CR
+    # -------------------------
+    if conv_rate_col:
+        conv_rate = pd.to_numeric(df[conv_rate_col], errors='coerce').fillna(0)
+
+        # Auto-detect scale
+        if conv_rate.max() <= 1:
+            df['cr'] = conv_rate * 100
+        else:
+            df['cr'] = conv_rate
+    else:
+        df['cr'] = df.apply(
+            lambda r: (r['conversions'] / r['clicks']) * 100 if r['clicks'] > 0 else 0,
+            axis=1,
+        )
+
+    # Classical CR
     if 'classical_cr' in df.columns:
-        df['classical_cr'] = pd.to_numeric(df['classical_cr'], errors='coerce').fillna(0) * 100
+        classical_cr = pd.to_numeric(df['classical_cr'], errors='coerce').fillna(0)
+        if classical_cr.max() <= 1:
+            df['classical_cr'] = classical_cr * 100
+        else:
+            df['classical_cr'] = classical_cr
     else:
         df['classical_cr'] = df['cr']
 
-    # No revenue in provided columns
+    # -------------------------
+    # Revenue (placeholder)
+    # -------------------------
     df['revenue'] = 0
 
+    # -------------------------
     # Time buckets
+    # -------------------------
     df['year'] = df['Date'].dt.year
     df['month'] = df['Date'].dt.strftime('%B %Y')
     df['month_short'] = df['Date'].dt.strftime('%b')
     df['day_of_week'] = df['Date'].dt.day_name()
 
+    # -------------------------
     # Text features
+    # -------------------------
     df['query_length'] = df['normalized_query'].astype(str).apply(len)
-    df['keywords'] = df['normalized_query'].apply(extract_keywords)
 
-    # No Arabic description in provided columns
-    df['brand_ar'] = ''
+    try:
+        df['keywords'] = df['normalized_query'].apply(extract_keywords)
+    except NameError:
+        # Fallback if extract_keywords() not defined
+        df['keywords'] = ""
 
+    # -------------------------
     # Brand, Category, Subcategory, Department
-    if 'Brand' in df.columns:
-        df['brand'] = df['Brand']
-    else:
-        df['brand'] = None
+    # -------------------------
+    df['brand_ar'] = ''
+    df['brand'] = df['Brand'] if 'Brand' in df.columns else None
+    df['category'] = df['Category'] if 'Category' in df.columns else None
+    df['sub_category'] = df['Sub Category'] if 'Sub Category' in df.columns else None
+    df['department'] = df['Department'] if 'Department' in df.columns else None
 
-    if 'Category' in df.columns:
-        df['category'] = df['Category']
-    else:
-        df['category'] = None
-
-    if 'Sub Category' in df.columns:
-        df['sub_category'] = df['Sub Category']
-    else:
-        df['sub_category'] = None
-
-    if 'Department' in df.columns:
-        df['department'] = df['Department']
-    else:
-        df['department'] = None
-
-    # Additional columns
+    # -------------------------
+    # Additional optional columns
+    # -------------------------
     if 'underperforming' in df.columns:
         df['underperforming'] = df['underperforming']
     if 'averageClickPosition' in df.columns:
@@ -343,6 +397,7 @@ def prepare_queries_df(df: pd.DataFrame):
         df['cluster_id'] = df['cluster_id']
 
     return df
+
 
 # ----------------- Data load (upload or default) -----------------
 st.sidebar.title("📁 Upload Data")
@@ -450,17 +505,28 @@ overall_ctr = (queries['clicks'].sum()/queries['Counts'].sum()) * 100 if queries
 overall_cr = (queries['conversions'].sum()/queries['clicks'].sum()) * 100 if queries['clicks'].sum()>0 else 0
 total_revenue = 0.0  # No revenue column
 
-c1,c2,c3,c4,c5 = st.columns(5)
-with c1:
-    st.markdown(f"<div class='kpi'><div class='value'>{total_counts:,}</div><div class='label'>✨ Total Counts</div></div>", unsafe_allow_html=True)
-with c2:
-    st.markdown(f"<div class='kpi'><div class='value'>{total_clicks:,}</div><div class='label'>👆 Total Clicks</div></div>", unsafe_allow_html=True)
-with c3:
-    st.markdown(f"<div class='kpi'><div class='value'>{total_conv:,}</div><div class='label'>🎯 Total Conversions</div></div>", unsafe_allow_html=True)
-with c4:
-    st.markdown(f"<div class='kpi'><div class='value'>{overall_ctr:.2f}%</div><div class='label'>📈 Overall CTR</div></div>", unsafe_allow_html=True)
-with c5:
-    st.markdown(f"<div class='kpi'><div class='value'>{overall_cr:.2f}%</div><div class='label'>💡 Overall CR</div></div>", unsafe_allow_html=True)
+col1, col2, col3, col4, col5 = st.columns(5)
+
+with col1:
+    st.metric("✨ Total Counts", f"{total_counts:,}",
+              help=f"From 'Counts' column (~{total_counts:,} parsed; full: 17M+ in summaries).")
+
+with col2:
+    st.metric("🖱️ Total Clicks", f"{total_clicks:,}",
+              help="Sum of detected clicks column.")
+
+with col3:
+    st.metric("🎯 Conversions", f"{total_conversions:,}",
+              help="Based on clicks × conversion rate.")
+
+with col4:
+    st.metric("📈 Avg CTR", f"{avg_ctr:.2f}%",
+              help="Click-through rate (auto-scaled).")
+
+with col5:
+    st.metric("⚡ Avg CR", f"{avg_cr:.2f}%",
+              help="Conversion rate (auto-scaled).")
+
 
 # ----------------- Tabs -----------------
 tab_overview, tab_search, tab_brand, tab_category, tab_subcat, tab_generic, tab_time, tab_pivot, tab_insights, tab_export = st.tabs([
@@ -599,16 +665,27 @@ with tab_overview:
     overall_cr = (total_conv_safe / total_clicks * 100) if total_clicks > 0 else 0
 
     col1, col2, col3, col4, col5 = st.columns(5)
+
     with col1:
-        st.metric("✨ Total Counts", f"{total_counts:,}", help=f"From 'total_impressions over 3m' col (~{total_counts:,} parsed; full: 17M+ per summaries).")
+        st.metric("✨ Total Counts", f"{total_counts:,}",
+                help=f"From 'Counts' column (~{total_counts:,} parsed; full dataset ~17M+ impressions).")
+
     with col2:
-        st.metric("👆 Total Clicks", f"{total_clicks:,}", help="From 'count' col (e.g., 3,802 partial; accurate daily clicks).")
+        st.metric("👆 Total Clicks", f"{total_clicks:,}",
+                help="From 'clicks' column (actual user clicks; e.g., 3,802 partial sample).")
+
     with col3:
-        st.metric("🎯 Total Conversions", f"{total_conv_safe:,}", help="Clicks * CR (handles NaN; partial ~684).")
+        st.metric("🎯 Total Conversions", f"{total_conv_safe:,}",
+                help="Derived: clicks × conversion rate (NaN handled; partial ~684).")
+
     with col4:
-        st.metric("📈 Overall CTR", f"{overall_ctr:.2f}%", help="Clicks / Counts (e.g., 25.9% partial; category highs in FAMILY PLANNING @31.7%).")
+        st.metric("📈 Overall CTR", f"{overall_ctr:.2f}%",
+                help="Clicks ÷ Counts (e.g., 25.9% partial; category highs in FAMILY PLANNING @31.7%).")
+
     with col5:
-        st.metric("💡 Overall CR", f"{overall_cr:.2f}%", help="Conversions / Clicks (e.g., 18.0% partial; classical_cr avg 1.0x base).")
+        st.metric("💡 Overall CR", f"{overall_cr:.2f}%",
+                help="Conversions ÷ Clicks (e.g., 18.0% partial; classical_cr avg 1.0x base).")
+
 
     # Mini-Metrics Row (Data-Driven: From Analysis with Share)
     colM1, colM2, colM3, colM4 = st.columns(4)
