@@ -717,6 +717,75 @@ with tab_overview:
     with col5:
         st.markdown(f"<div class='kpi'><div class='value'>{overall_cr:.2f}%</div><div class='label'>💡 Overall CR</div></div>", unsafe_allow_html=True)
 
+    # ----------------- Chart Visualization -----------------
+    st.write("### Performance Snapshot Metrics")
+    # Chart to visualize Total Counts, Total Clicks, and Total Conversions
+    try:
+        # Prepare data for the chart
+        chart_data = pd.DataFrame({
+            'Metric': ['Total Counts', 'Total Clicks', 'Total Conversions'],
+            'Counts': [total_counts, total_clicks, total_conv_safe]
+        })
+        total_all_metrics = chart_data['Counts'].sum()
+        chart_data['Percentage'] = (chart_data['Counts'] / total_all_metrics * 100).round(1)
+
+        # Create a beautiful bar chart with text labels
+        fig = px.bar(chart_data, x='Metric', y='Counts',
+                    title='<b style="color:#FF5A6E; font-size:18px; text-shadow: 2px 2px 4px #00000055;">Performance Snapshot: 2025 Trends at a Glance! 🌟</b>',
+                    labels={'Metric': '<i>Metric</i>', 'Counts': '<b>Search Counts</b>'},
+                    color='Counts',
+                    color_continuous_scale=['#E6F3FA', '#FFB085', '#FF5A6E'],
+                    template='plotly_white',
+                    text=chart_data['Counts'].astype(str))  # Show counts on bars
+
+        # Update traces to position text outside, add percentages, and set hovertemplate
+        fig.update_traces(
+            texttemplate='%{text}<br>%{customdata:.1f}%',
+            customdata=chart_data['Percentage'],
+            textposition='outside',
+            hovertemplate='<b>%{x}</b><br>Counts: %{y:,.0f}<br>Share: %{customdata:.1f}%<extra></extra>'
+        )
+
+        # Enhance attractiveness: Custom layout for beauty
+        fig.update_layout(
+            plot_bgcolor='rgba(255,255,255,0.95)',
+            paper_bgcolor='rgba(255,247,232,0.8)',
+            font=dict(color='#0B486B', family='Segoe UI'),
+            title_x=0,  # Left alignment for title
+            title_font_size=16,
+            xaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
+            yaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5E6E', linewidth=2),
+            bargap=0.2,
+            barcornerradius=8,
+            annotations=[
+                dict(
+                    x=0.5, y=1.05, xref='paper', yref='paper',
+                    text='✨ Hover for details | Peak metric highlighted below ✨',
+                    showarrow=False,
+                    font=dict(size=10, color='#FF5A6E', family='Segoe UI'),
+                    align='center'
+                )
+            ]
+        )
+
+        # Highlight the peak metric with a custom marker or annotation
+        peak_metric = chart_data.loc[chart_data['Counts'].idxmax(), 'Metric']
+        peak_value = chart_data['Counts'].max()
+        fig.add_annotation(
+            x=peak_metric, y=peak_value,
+            text=f"🏆 Peak: {peak_value:,.0f}",
+            showarrow=True,
+            arrowhead=3,
+            arrowcolor='#FF5A6E',
+            ax=0, ay=-30,
+            font=dict(size=12, color='#FF5A6E', family='Segoe UI', weight='bold')
+        )
+
+        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Error generating chart: {e}")
 
     # Mini-Metrics Row (Data-Driven: From Analysis with Share)
     colM1, colM2, colM3, colM4 = st.columns(4)
