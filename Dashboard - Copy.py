@@ -493,7 +493,7 @@ with tab_overview:
     st.image(image_options[selected_image], use_container_width=True)
 
     colA, colB = st.columns([2, 1])
-    with colA:
+        with colA:
         # Counts over Months as a creative bar chart with labels and percentages
         monthly_counts = queries.groupby(queries['Date'].dt.strftime('%b %Y'))['Counts'].sum().reset_index()
         if not monthly_counts.empty and len(monthly_counts) >= 2:
@@ -512,10 +512,13 @@ with tab_overview:
                             template='plotly_white',
                             text=monthly_counts['Counts'].astype(str))  # Show counts on bars
                 
-                # Update traces to position text outside and add percentages
-                fig.update_traces(texttemplate='%{text}<br>%{customdata:.1f}%',
-                                customdata=monthly_counts['Percentage'],
-                                textposition='outside')
+                # Update traces to position text outside, add percentages, and set hovertemplate
+                fig.update_traces(
+                    texttemplate='%{text}<br>%{customdata:.1f}%',
+                    customdata=monthly_counts['Percentage'],
+                    textposition='outside',
+                    hovertemplate='<b>%{x}</b><br>Counts: %{y:,.0f}<br>Share: %{customdata:.1f}%<extra></extra>'  # Moved here
+                )
                 
                 # Enhance attractiveness: Custom layout for beauty
                 fig.update_layout(
@@ -528,7 +531,6 @@ with tab_overview:
                     yaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
                     bargap=0.2,
                     barcornerradius=8,
-                    hovertemplate='<b>%{x}</b><br>Counts: %{y:,.0f}<br>Share: %{customdata:.1f}%<extra></extra>',
                     annotations=[
                         dict(
                             x=0.5, y=1.05, xref='paper', yref='paper',
