@@ -511,7 +511,7 @@ with tab_overview:
                             color_continuous_scale=['#E6F3FA', '#FFB085', '#FF5A6E'],
                             template='plotly_white',
                             text=monthly_counts['Counts'].astype(str))  # Show counts on bars
-                
+                    
                 # Update traces to position text outside, add percentages, and set hovertemplate
                 fig.update_traces(
                     texttemplate='%{text}<br>%{customdata:.1f}%',
@@ -525,7 +525,7 @@ with tab_overview:
                     plot_bgcolor='rgba(255,255,255,0.95)',
                     paper_bgcolor='rgba(255,247,232,0.8)',
                     font=dict(color='#0B486B', family='Segoe UI'),
-                    title_x=0.5,
+                    title_x=0,  # Align title to the left
                     title_font_size=16,
                     xaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
                     yaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
@@ -552,7 +552,7 @@ with tab_overview:
                     arrowhead=3,
                     arrowcolor='#FF5A6E',
                     ax=0, ay=-30,
-                    font=dict(size=12, color='#FF5A6E', family='Segoe UI', weight='bold')  # Changed 'bold' to 'weight': 'bold'
+                    font=dict(size=12, color='#FF5A6E', family='Segoe UI', weight='bold')
                 )
                 
                 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
