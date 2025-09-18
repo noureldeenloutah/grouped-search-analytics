@@ -687,6 +687,9 @@ with tab_overview:
             st.warning("No valid data available for top 50 queries.")
         else:
             try:
+                # Debug: Log available columns
+                st.sidebar.write("**Available columns in queries:**", list(queries.columns))
+
                 # Group by 'search' and aggregate
                 top50 = queries.groupby('search').agg({
                     'Counts': 'sum',
@@ -697,11 +700,19 @@ with tab_overview:
                 # Calculate total Counts for share percentage
                 total_counts = queries['Counts'].sum()
 
-                # Calculate weighted average Conversion Rate
+                # Calculate weighted average Conversion Rate if column exists
                 if 'Conversion Rate' in queries.columns:
                     total_clicks_by_query = queries.groupby('search')['clicks'].sum()
                     total_conversions_by_query = queries.groupby('search')['conversions'].sum()
                     top50['Conversion Rate'] = (total_conversions_by_query / total_clicks_by_query * 100).round(2).fillna(0).replace([float('inf'), -float('inf')], 0)
+                else:
+                    # Derive Conversion Rate from conversions and clicks if possible
+                    if 'conversions' in top50.columns and 'clicks' in top50.columns:
+                        top50['Conversion Rate'] = (top50['conversions'] / top50['clicks'] * 100).round(2).fillna(0).replace([float('inf'), -float('inf')], 0)
+                        st.warning("⚠ 'Conversion Rate' column not found; derived from conversions/clicks.")
+                    else:
+                        top50['Conversion Rate'] = 'N/A'
+                        st.warning("⚠ 'Conversion Rate' and derivable data (conversions/clicks) not found.")
 
                 # Calculate share percentage
                 top50['Share %'] = (top50['Counts'] / total_counts * 100).round(2)
@@ -719,7 +730,7 @@ with tab_overview:
 
                 # Round up clicks and format Conversion Rate as percentage
                 top50['Clicks'] = top50['Clicks'].round().astype(int)
-                top50['Conversion Rate'] = top50['Conversion Rate'].astype(str) + '%'
+                top50['Conversion Rate'] = top50['Conversion Rate'].astype(str) + '%' if top50['Conversion Rate'].dtype != 'object' else top50['Conversion Rate']
 
                 # Format Search Counts with commas
                 top50['Search Counts'] = top50['Search Counts'].apply(lambda x: f"{x:,.0f}")
