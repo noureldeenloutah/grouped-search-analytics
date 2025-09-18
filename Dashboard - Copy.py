@@ -500,7 +500,7 @@ st.markdown('<div class="sub-header">Uncover powerful insights from the <b>searc
 
 total_counts = int(queries['Counts'].sum())
 total_clicks = int(queries['clicks'].sum())
-total_conv = int(queries['conversions'].sum())
+total_conversions = int(queries['conversions'].sum())  # Fixed variable name
 overall_ctr = (queries['clicks'].sum()/queries['Counts'].sum()) * 100 if queries['Counts'].sum()>0 else 0
 overall_cr = (queries['conversions'].sum()/queries['clicks'].sum()) * 100 if queries['clicks'].sum()>0 else 0
 total_revenue = 0.0  # No revenue column
@@ -516,15 +516,15 @@ with col2:
               help="Sum of detected clicks column.")
 
 with col3:
-    st.metric("🎯 Conversions", f"{total_conversions:,}",
+    st.metric("🎯 Conversions", f"{total_conversions:,}",  # Now using the correct variable
               help="Based on clicks × conversion rate.")
 
 with col4:
-    st.metric("📈 Avg CTR", f"{avg_ctr:.2f}%",
+    st.metric("📈 Avg CTR", f"{overall_ctr:.2f}%",  # Changed from avg_ctr to overall_ctr
               help="Click-through rate (auto-scaled).")
 
 with col5:
-    st.metric("⚡ Avg CR", f"{avg_cr:.2f}%",
+    st.metric("⚡ Avg CR", f"{overall_cr:.2f}%",  # Changed from avg_cr to overall_cr
               help="Conversion rate (auto-scaled).")
 
 
