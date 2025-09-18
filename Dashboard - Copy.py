@@ -598,7 +598,7 @@ with tab_overview:
     # Image Selection in Sidebar
     st.sidebar.header("🎨 Customize Hero Image")
     image_options = {
-        "Abstract Gradient": "https://placehold.co/1200x250/FF5A6E/FFFFFF?text=✨+Lady+Care+Insights",
+        "Abstract Gradient": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Lady+Care+Insights"",
         "Nature-Inspired": "https://picsum.photos/1200/250?random=care_nature",
         "Elegant Pink Theme": "https://source.unsplash.com/1200x250/?pink,elegant",
         "Custom Text on Solid Color": "https://placehold.co/1200x250/E6F3FA/FF5A6E?text=✨+Lady+Care+Glow",
@@ -1120,9 +1120,8 @@ with tab_search:
     
     # Hero Image for Search Tab
     search_image_options = {
-        "Search Analytics Focus": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=🔍+Search+Query+Intelligence",
-        "Data Visualization": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=📊+Keyword+Performance+Hub",
-        "Abstract Search": "https://source.unsplash.com/1200x200/?analytics,data",
+        "Search Analytics Focus": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Keyword+Performance+Hub"",
+        "Data Visualization": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=Search+Query+Intelligence",
     }
     selected_search_image = st.sidebar.selectbox("Choose Search Tab Hero", options=list(search_image_options.keys()), index=0, key="search_hero")
     st.image(search_image_options[selected_search_image], use_container_width=True)
@@ -1252,59 +1251,94 @@ with tab_search:
                 
                 st.plotly_chart(fig_kw, use_container_width=True)
                 
-                # Top performing keywords table
+                # Top performing keywords table - FIXED VERSION
                 st.subheader("🏆 Top Performing Keywords")
                 top_keywords = kw_perf_df.sort_values('total_counts', ascending=False).head(15)
 
-                # Create a copy for styling (keep numeric values)
-                styling_kw = top_keywords.copy()
-
-                # Format the dataframe for display AFTER applying styling
-                display_kw = top_keywords.copy()
-                display_kw['total_counts'] = display_kw['total_counts'].apply(lambda x: f"{x:,.0f}")
-                display_kw['total_clicks'] = display_kw['total_clicks'].apply(lambda x: f"{x:,.0f}")
-                display_kw['total_conversions'] = display_kw['total_conversions'].apply(lambda x: f"{x:,.0f}")
-                display_kw['avg_ctr'] = display_kw['avg_ctr'].apply(lambda x: f"{x:.2f}%")
-                display_kw['avg_cr'] = display_kw['avg_cr'].apply(lambda x: f"{x:.2f}%")
-
-                display_kw = display_kw.rename(columns={
-                    'keyword': 'Keyword',
-                    'frequency': 'Frequency',
-                    'total_counts': 'Total Counts',
-                    'total_clicks': 'Total Clicks',
-                    'total_conversions': 'Conversions',
-                    'avg_ctr': 'Avg CTR',
-                    'avg_cr': 'Avg CR'
-                })
-
-                # Apply styling to the numeric version, then format
-                styled_keywords = styling_kw.style.background_gradient(
-                    subset=['frequency'], 
-                    cmap='Blues', 
-                    alpha=0.3
-                ).format({
-                    'total_counts': '{:,.0f}',
-                    'total_clicks': '{:,.0f}',
-                    'total_conversions': '{:,.0f}',
-                    'avg_ctr': '{:.2f}%',
-                    'avg_cr': '{:.2f}%'
-                }).set_properties(**{
-                    'text-align': 'center',
-                    'font-size': '13px'
-                })
-
-                # Rename columns for final display
-                styled_keywords = styled_keywords.relabel_index({
-                    'keyword': 'Keyword',
-                    'frequency': 'Frequency',
-                    'total_counts': 'Total Counts',
-                    'total_clicks': 'Total Clicks',
-                    'total_conversions': 'Conversions',
-                    'avg_ctr': 'Avg CTR',
-                    'avg_cr': 'Avg CR'
-                }, axis=1)
-
-                st.dataframe(styled_keywords, use_container_width=True)
+                # Check if 'frequency' column exists before applying subset styling
+                try:
+                    if 'frequency' in top_keywords.columns:
+                        # Apply styling with proper error handling
+                        styled_keywords = top_keywords.style.background_gradient(
+                            subset=['frequency'], 
+                            cmap='Blues', 
+                            alpha=0.3
+                        ).format({
+                            'total_counts': '{:,.0f}',
+                            'total_clicks': '{:,.0f}',
+                            'total_conversions': '{:,.0f}',
+                            'avg_ctr': '{:.2f}%',
+                            'avg_cr': '{:.2f}%'
+                        }).set_properties(**{
+                            'text-align': 'center',
+                            'font-size': '13px'
+                        })
+                        
+                        # Create display version with renamed columns
+                        display_df = top_keywords.copy()
+                        display_df = display_df.rename(columns={
+                            'keyword': 'Keyword',
+                            'frequency': 'Frequency',
+                            'total_counts': 'Total Counts',
+                            'total_clicks': 'Total Clicks',
+                            'total_conversions': 'Conversions',
+                            'avg_ctr': 'Avg CTR',
+                            'avg_cr': 'Avg CR'
+                        })
+                        
+                        # Apply the same styling to renamed dataframe
+                        styled_display = display_df.style.background_gradient(
+                            subset=['Frequency'], 
+                            cmap='Blues', 
+                            alpha=0.3
+                        ).format({
+                            'Total Counts': '{:,.0f}',
+                            'Total Clicks': '{:,.0f}',
+                            'Conversions': '{:,.0f}',
+                            'Avg CTR': '{:.2f}%',
+                            'Avg CR': '{:.2f}%'
+                        }).set_properties(**{
+                            'text-align': 'center',
+                            'font-size': '13px'
+                        })
+                        
+                        st.dataframe(styled_display, use_container_width=True)
+                    
+                    else:
+                        # Fallback: display without gradient styling
+                        display_df = top_keywords.copy()
+                        display_df['total_counts'] = display_df['total_counts'].apply(lambda x: f"{x:,.0f}")
+                        display_df['total_clicks'] = display_df['total_clicks'].apply(lambda x: f"{x:,.0f}")
+                        display_df['total_conversions'] = display_df['total_conversions'].apply(lambda x: f"{x:,.0f}")
+                        display_df['avg_ctr'] = display_df['avg_ctr'].apply(lambda x: f"{x:.2f}%")
+                        display_df['avg_cr'] = display_df['avg_cr'].apply(lambda x: f"{x:.2f}%")
+                        
+                        display_df = display_df.rename(columns={
+                            'keyword': 'Keyword',
+                            'frequency': 'Frequency',
+                            'total_counts': 'Total Counts',
+                            'total_clicks': 'Total Clicks',
+                            'total_conversions': 'Conversions',
+                            'avg_ctr': 'Avg CTR',
+                            'avg_cr': 'Avg CR'
+                        })
+                        
+                        st.dataframe(display_df, use_container_width=True)
+                        
+                except Exception as e:
+                    st.error(f"Styling error: {e}")
+                    # Final fallback: simple dataframe display
+                    simple_df = top_keywords.copy()
+                    simple_df = simple_df.rename(columns={
+                        'keyword': 'Keyword',
+                        'frequency': 'Frequency',
+                        'total_counts': 'Total Counts',
+                        'total_clicks': 'Total Clicks',
+                        'total_conversions': 'Conversions',
+                        'avg_ctr': 'Avg CTR',
+                        'avg_cr': 'Avg CR'
+                    })
+                    st.dataframe(simple_df, use_container_width=True)
 
     
     with col_right:
@@ -1489,7 +1523,7 @@ with tab_search:
     
     st.markdown("---")
     
-    # Query Performance Insights Table
+    # Query Performance Insights Table - FIXED VERSION
     st.subheader("📋 Detailed Query Performance Analysis")
     
     # Create comprehensive query analysis
@@ -1508,36 +1542,83 @@ with tab_search:
     # Sort by performance score and get top performers
     top_performers = query_analysis.sort_values('performance_score', ascending=False).head(20)
     
-    # Format for display
-    display_analysis = top_performers.copy()
-    display_analysis['Counts'] = display_analysis['Counts'].apply(lambda x: f"{x:,.0f}")
-    display_analysis['clicks'] = display_analysis['clicks'].apply(lambda x: f"{x:,.0f}")
-    display_analysis['conversions'] = display_analysis['conversions'].apply(lambda x: f"{x:,.0f}")
-    display_analysis['ctr'] = display_analysis['ctr'].apply(lambda x: f"{x:.2f}%")
-    display_analysis['cr'] = display_analysis['cr'].apply(lambda x: f"{x:.2f}%")
-    display_analysis['is_long_tail'] = display_analysis['is_long_tail'].map({True: '✅', False: '❌'})
-    
-    display_analysis = display_analysis.rename(columns={
-        'normalized_query': 'Search Query',
-        'Counts': 'Total Searches',
-        'clicks': 'Clicks',
-        'conversions': 'Conversions',
-        'ctr': 'CTR',
-        'cr': 'CR',
-        'query_length': 'Length',
-        'is_long_tail': 'Long-tail',
-        'performance_score': 'Score'
-    })
-    
-    # Display with enhanced styling
-    styled_analysis = display_analysis[['Search Query', 'Total Searches', 'Clicks', 'Conversions', 'CTR', 'CR', 'Length', 'Long-tail', 'Score']].style.format({
-        'Score': '{:.2f}'
-    }).set_properties(**{
-        'text-align': 'center',
-        'font-size': '12px'
-    }).background_gradient(subset=['Score'], cmap='RdYlGn', alpha=0.4)
-    
-    st.dataframe(styled_analysis, use_container_width=True)
+    # Create display version with proper formatting
+    try:
+        # Apply styling to numeric columns only
+        styled_analysis = top_performers.style.background_gradient(
+            subset=['performance_score'], 
+            cmap='RdYlGn', 
+            alpha=0.4
+        ).format({
+            'Counts': '{:,.0f}',
+            'clicks': '{:,.0f}',
+            'conversions': '{:,.0f}',
+            'ctr': '{:.2f}%',
+            'cr': '{:.2f}%',
+            'performance_score': '{:.2f}'
+        }).set_properties(**{
+            'text-align': 'center',
+            'font-size': '12px'
+        })
+        
+        # Create final display dataframe with renamed columns
+        display_analysis = top_performers.copy()
+        display_analysis['is_long_tail'] = display_analysis['is_long_tail'].map({True: '✅', False: '❌'})
+        display_analysis = display_analysis.rename(columns={
+            'normalized_query': 'Search Query',
+            'Counts': 'Total Searches',
+            'clicks': 'Clicks',
+            'conversions': 'Conversions',
+            'ctr': 'CTR',
+            'cr': 'CR',
+            'query_length': 'Length',
+            'is_long_tail': 'Long-tail',
+            'performance_score': 'Score'
+        })
+        
+        # Apply styling to renamed dataframe
+        final_styled = display_analysis[['Search Query', 'Total Searches', 'Clicks', 'Conversions', 'CTR', 'CR', 'Length', 'Long-tail', 'Score']].style.background_gradient(
+            subset=['Score'], 
+            cmap='RdYlGn', 
+            alpha=0.4
+        ).format({
+            'Total Searches': '{:,.0f}',
+            'Clicks': '{:,.0f}',
+            'Conversions': '{:,.0f}',
+            'CTR': '{:.2f}%',
+            'CR': '{:.2f}%',
+            'Score': '{:.2f}'
+        }).set_properties(**{
+            'text-align': 'center',
+            'font-size': '12px'
+        })
+        
+        st.dataframe(final_styled, use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"Styling error in query analysis: {e}")
+        # Fallback: simple formatted dataframe
+        simple_analysis = top_performers.copy()
+        simple_analysis['Counts'] = simple_analysis['Counts'].apply(lambda x: f"{x:,.0f}")
+        simple_analysis['clicks'] = simple_analysis['clicks'].apply(lambda x: f"{x:,.0f}")
+        simple_analysis['conversions'] = simple_analysis['conversions'].apply(lambda x: f"{x:,.0f}")
+        simple_analysis['ctr'] = simple_analysis['ctr'].apply(lambda x: f"{x:.2f}%")
+        simple_analysis['cr'] = simple_analysis['cr'].apply(lambda x: f"{x:.2f}%")
+        simple_analysis['is_long_tail'] = simple_analysis['is_long_tail'].map({True: '✅', False: '❌'})
+        
+        simple_analysis = simple_analysis.rename(columns={
+            'normalized_query': 'Search Query',
+            'Counts': 'Total Searches',
+            'clicks': 'Clicks',
+            'conversions': 'Conversions',
+            'ctr': 'CTR',
+            'cr': 'CR',
+            'query_length': 'Length',
+            'is_long_tail': 'Long-tail',
+            'performance_score': 'Score'
+        })
+        
+        st.dataframe(simple_analysis[['Search Query', 'Total Searches', 'Clicks', 'Conversions', 'CTR', 'CR', 'Length', 'Long-tail', 'Score']], use_container_width=True)
     
     # Download functionality
     csv_analysis = query_analysis.to_csv(index=False)
@@ -1575,6 +1656,7 @@ with tab_search:
             • Monitor search intent patterns for strategy alignment</p>
         </div>
         """, unsafe_allow_html=True)
+
 # ----------------- Brand Tab -----------------
 with tab_brand:
     st.header("🏷 Brand Insights")
