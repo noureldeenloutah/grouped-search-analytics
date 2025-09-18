@@ -244,8 +244,16 @@ def extract_keywords(text: str):
 
 import pandas as pd
 
-def prepare_queries_df(df: pd.DataFrame):
-    """Normalize columns, create derived metrics and time buckets."""
+import pandas as pd
+import streamlit as st
+
+def prepare_queries_df(df: pd.DataFrame, use_derived_metrics: bool = False):
+    """Normalize columns, create derived metrics and time buckets.
+    
+    Args:
+        df (pd.DataFrame): Input DataFrame from Excel sheet.
+        use_derived_metrics (bool): If True, derive clicks and conversions from rates; if False, use sheet columns.
+    """
     df = df.copy()
     
     # -------------------------
@@ -280,43 +288,55 @@ def prepare_queries_df(df: pd.DataFrame):
         st.sidebar.warning("❌ No 'count' column found for impressions")
 
     # -------------------------
-    # CLICKS = Calculate from Counts * CTR
+    # CLICKS and CONVERSIONS (use sheet columns or derive from rates)
     # -------------------------
-    if 'Click Through Rate' in df.columns and 'count' in df.columns:
-        # Convert CTR to decimal (handle both percentage and decimal formats)
-        ctr = pd.to_numeric(df['Click Through Rate'], errors='coerce').fillna(0)
-        
-        # Auto-detect CTR format
-        if ctr.max() > 1:  # If CTR is in percentage (e.g., 5.2 means 5.2%)
-            ctr_decimal = ctr / 100.0
-        else:  # If CTR is already in decimal (e.g., 0.052)
-            ctr_decimal = ctr
-            
-        # Calculate clicks
-        df['clicks'] = (df['Counts'] * ctr_decimal).round().astype(int)
-        st.sidebar.success(f"✅ Calculated clicks from CTR: {df['clicks'].sum():,}")
+    if 'Clicks' in df.columns:
+        df['clicks'] = pd.to_numeric(df['Clicks'], errors='coerce').fillna(0)
+        st.sidebar.success(f"✅ Using 'Clicks' column: {df['clicks'].sum():,}")
     else:
         df['clicks'] = 0
-        st.sidebar.warning("❌ Cannot calculate clicks - missing CTR or count data")
+        st.sidebar.warning("❌ No 'Clicks' column found")
 
-    # -------------------------
-    # Conversions (clicks × conversion rate)
-    # -------------------------
-    if 'Converion Rate' in df.columns:
-        # Convert conversion rate to decimal
-        conv_rate = pd.to_numeric(df['Converion Rate'], errors='coerce').fillna(0)
-        
-        # Auto-detect conversion rate format
-        if conv_rate.max() > 1:  # If CR is in percentage
-            conv_rate_decimal = conv_rate / 100.0
-        else:  # If CR is already in decimal
-            conv_rate_decimal = conv_rate
-            
-        df['conversions'] = (df['clicks'] * conv_rate_decimal).round().astype(int)
-        st.sidebar.success(f"✅ Calculated conversions: {df['conversions'].sum():,}")
+    if 'Conversions' in df.columns:
+        df['conversions'] = pd.to_numeric(df['Conversions'], errors='coerce').fillna(0)
+        st.sidebar.success(f"✅ Using 'Conversions' column: {df['conversions'].sum():,}")
     else:
         df['conversions'] = 0
-        st.sidebar.warning("❌ No conversion rate data found")
+        st.sidebar.warning("❌ No 'Conversions' column found")
+
+    # Derive metrics if requested (overrides sheet values)
+    if use_derived_metrics:
+        if 'Click Through Rate' in df.columns and 'count' in df.columns:
+            ctr = pd.to_numeric(df['Click Through Rate'], errors='coerce').fillna(0)
+            if ctr.max() > 1:  # Percentage format
+                ctr_decimal = ctr / 100.0
+            else:  # Decimal format
+                ctr_decimal = ctr
+            df['clicks'] = (df['Counts'] * ctr_decimal).round().astype(int)
+            st.sidebar.success(f"✅ Derived clicks from CTR: {df['clicks'].sum():,}")
+        else:
+            st.sidebar.warning("❌ Cannot derive clicks - missing CTR or count data")
+
+        if 'Conversion Rate' in df.columns:  # Fixed typo from 'Converion Rate'
+            conv_rate = pd.to_numeric(df['Conversion Rate'], errors='coerce').fillna(0)
+            if conv_rate.max() > 1:  # Percentage format
+                conv_rate_decimal = conv_rate / 100.0
+            else:  # Decimal format
+                conv_rate_decimal = conv_rate
+            df['conversions'] = (df['clicks'] * conv_rate_decimal).round().astype(int)
+            st.sidebar.success(f"✅ Derived conversions: {df['conversions'].sum():,}")
+        else:
+            st.sidebar.warning("❌ No Conversion Rate data found")
+
+    # Validate derived vs. sheet values (if both exist)
+    if 'Clicks' in df.columns and use_derived_metrics:
+        diff_clicks = abs(df['clicks'].sum() - df['Clicks'].sum())
+        if diff_clicks > 0:
+            st.sidebar.warning(f"⚠ Derived clicks ({df['clicks'].sum():,}) differ from sheet Clicks ({df['Clicks'].sum():,}) by {diff_clicks:,}")
+    if 'Conversions' in df.columns and use_derived_metrics:
+        diff_conversions = abs(df['conversions'].sum() - df['Conversions'].sum())
+        if diff_conversions > 0:
+            st.sidebar.warning(f"⚠ Derived conversions ({df['conversions'].sum():,}) differ from sheet Conversions ({df['Conversions'].sum():,}) by {diff_conversions:,}")
 
     # -------------------------
     # CTR (store as percentage for consistency)
@@ -335,8 +355,8 @@ def prepare_queries_df(df: pd.DataFrame):
     # -------------------------
     # CR (store as percentage for consistency)
     # -------------------------
-    if 'Converion Rate' in df.columns:
-        cr = pd.to_numeric(df['Converion Rate'], errors='coerce').fillna(0)
+    if 'Conversion Rate' in df.columns:  # Fixed typo
+        cr = pd.to_numeric(df['Conversion Rate'], errors='coerce').fillna(0)
         if cr.max() <= 1:
             df['cr'] = cr * 100  # Convert to percentage
         else:
@@ -374,7 +394,7 @@ def prepare_queries_df(df: pd.DataFrame):
     # Text features
     # -------------------------
     df['query_length'] = df['normalized_query'].astype(str).apply(len)
-    df['keywords'] = df['normalized_query'].apply(extract_keywords)
+    df['keywords'] = df['normalized_query'].apply(extract_keywords)  # Assuming extract_keywords is defined
 
     # -------------------------
     # Brand, Category, Subcategory, Department
@@ -399,7 +419,7 @@ def prepare_queries_df(df: pd.DataFrame):
     # Keep original columns for reference
     # -------------------------
     original_cols = ['Department', 'Category', 'Sub Category', 'Brand', 'search', 'count', 
-                     'Click Through Rate', 'Converion Rate', 'total_impressions over 3m',
+                     'Click Through Rate', 'Conversion Rate', 'total_impressions over 3m',
                      'averageClickPosition', 'underperforming', 'classical_cr', 'cluster_id',
                      'start_date', 'end_date']
     
