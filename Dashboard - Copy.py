@@ -1265,9 +1265,9 @@ with tab_search:
                 num_keywords = st.slider(
                     "Number of keywords to display:", 
                     min_value=10, 
-                    max_value=50, 
+                    max_value=300, 
                     value=15, 
-                    step=5,
+                    step=10,
                     key="keyword_count_slider_search_tab"
                 )
 
