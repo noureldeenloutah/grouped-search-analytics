@@ -1120,8 +1120,8 @@ with tab_search:
     
     # Hero Image for Search Tab
     search_image_options = {
-        "Search Analytics Focus": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Keyword+Performance+Hub",
-        "Data Visualization": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=🔍+Search+Query+Intelligence",
+        "Search Analytics Focus": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=🔍+Search+Query+Intelligence",
+        "Data Visualization": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=📊+Keyword+Performance+Hub",
         "Abstract Search": "https://source.unsplash.com/1200x200/?analytics,data",
         "Abstract Gradient": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Lady+Care+Insights",
     }
