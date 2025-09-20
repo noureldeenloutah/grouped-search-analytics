@@ -1120,8 +1120,10 @@ with tab_search:
     
     # Hero Image for Search Tab
     search_image_options = {
-        "Search Analytics Focus": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Keyword+Performance+Hub",
-        "Data Visualization": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=Search+Query+Intelligence",
+        "Search Analytics Focus": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=🔍+Search+Query+Intelligence",
+        "Data Visualization": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=📊+Keyword+Performance+Hub",
+        "Abstract Search": "https://source.unsplash.com/1200x200/?analytics,data",
+        "Abstract Gradient": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Lady+Care+Insights",
     }
     selected_search_image = st.sidebar.selectbox("Choose Search Tab Hero", options=list(search_image_options.keys()), index=0, key="search_hero")
     st.image(search_image_options[selected_search_image], use_container_width=True)
@@ -1154,7 +1156,8 @@ with tab_search:
         """, unsafe_allow_html=True)
     
     with col_m3:
-        total_keywords = sum(len(kw) for kw in queries['keywords'] if isinstance(kw, list))
+        # Fixed: Total Keywords = Total number of rows (each search query counts as 1)
+        total_keywords = len(queries)
         st.markdown(f"""
         <div class='mini-metric'>
             <span class='icon'>🔤</span>
@@ -1190,44 +1193,48 @@ with tab_search:
             kw_counts = kw_series.value_counts().reset_index()
             kw_counts.columns = ['keyword', 'frequency']
             
-            # Create keyword performance data
+            # Fixed: Create keyword performance data with correct calculation logic
             keyword_performance = []
             for keyword in kw_counts['keyword'].head(50):  # Top 50 keywords
-                keyword_queries = queries[queries['keywords'].apply(lambda x: keyword in x if isinstance(x, list) else False)]
+                # Filter rows where the keyword appears in the search column
+                keyword_queries = queries[queries['search'].str.contains(keyword, case=False, na=False)]
                 if not keyword_queries.empty:
+                    total_counts = keyword_queries['Counts'].sum()
+                    total_clicks = keyword_queries['clicks'].sum()
+                    total_conversions = keyword_queries['conversions'].sum()
+                    
                     performance = {
                         'keyword': keyword,
-                        'frequency': len(keyword_queries),
-                        'total_counts': keyword_queries['Counts'].sum(),
-                        'total_clicks': keyword_queries['clicks'].sum(),
-                        'total_conversions': keyword_queries['conversions'].sum(),
-                        'avg_ctr': (keyword_queries['clicks'].sum() / keyword_queries['Counts'].sum() * 100) if keyword_queries['Counts'].sum() > 0 else 0,
-                        'avg_cr': (keyword_queries['conversions'].sum() / keyword_queries['clicks'].sum() * 100) if keyword_queries['clicks'].sum() > 0 else 0
+                        'total_counts': total_counts,
+                        'total_clicks': total_clicks,
+                        'total_conversions': total_conversions,
+                        'avg_ctr': (total_clicks / total_counts * 100) if total_counts > 0 else 0,
+                        'avg_cr': (total_conversions / total_clicks * 100) if total_clicks > 0 else 0
                     }
                     keyword_performance.append(performance)
             
             kw_perf_df = pd.DataFrame(keyword_performance)
             
             if not kw_perf_df.empty:
-                # Enhanced keyword visualization
+                # Enhanced keyword visualization - Fixed: Removed frequency, using counts vs CTR and CR
                 fig_kw = px.scatter(
                     kw_perf_df.head(30), 
-                    x='frequency', 
+                    x='total_counts', 
                     y='avg_ctr',
-                    size='total_counts',
+                    size='total_clicks',
                     color='avg_cr',
                     hover_name='keyword',
-                    title='<b style="color:#FF5A6E; font-size:18px;">Keyword Performance Matrix: Frequency vs CTR 🎯</b>',
-                    labels={'frequency': 'Keyword Frequency', 'avg_ctr': 'Average CTR (%)', 'avg_cr': 'Avg CR (%)'},
+                    title='<b style="color:#FF5A6E; font-size:18px;">Keyword Performance Matrix: Counts vs CTR 🎯</b>',
+                    labels={'total_counts': 'Total Counts', 'avg_ctr': 'Average CTR (%)', 'avg_cr': 'Avg CR (%)'},
                     color_continuous_scale=['#E6F3FA', '#FFB085', '#FF5A6E'],
                     template='plotly_white'
                 )
                 
                 fig_kw.update_traces(
                     hovertemplate='<b>%{hovertext}</b><br>' +
-                                 'Frequency: %{x}<br>' +
+                                 'Total Counts: %{x:,.0f}<br>' +
                                  'CTR: %{y:.2f}%<br>' +
-                                 'Total Counts: %{marker.size:,.0f}<br>' +
+                                 'Total Clicks: %{marker.size:,.0f}<br>' +
                                  'Conversion Rate: %{marker.color:.2f}%<extra></extra>'
                 )
                 
@@ -1241,7 +1248,7 @@ with tab_search:
                     annotations=[
                         dict(
                             x=0.95, y=0.95, xref='paper', yref='paper',
-                            text='💡 Size = Total Counts | Color = Conversion Rate',
+                            text='💡 Size = Total Clicks | Color = Conversion Rate',
                             showarrow=False,
                             font=dict(size=11, color='#0B486B'),
                             align='right'
@@ -1251,48 +1258,44 @@ with tab_search:
                 
                 st.plotly_chart(fig_kw, use_container_width=True)
                 
-                # Top performing keywords table - FIXED VERSION
+                # Top performing keywords table - FIXED VERSION with all requested changes
                 st.subheader("🏆 Top Performing Keywords")
-                top_keywords = kw_perf_df.sort_values('total_counts', ascending=False).head(15)
+                
+                # Number of rows control
+                num_keywords = st.selectbox("Select number of keywords to display:", 
+                                          options=[10, 15, 20, 25, 30, 50], 
+                                          value=15, 
+                                          key="num_keywords")
+                
+                top_keywords = kw_perf_df.sort_values('total_counts', ascending=False).head(num_keywords)
+                
+                # Calculate total counts for share percentage
+                total_all_counts = queries['Counts'].sum()
+                top_keywords['share_pct'] = (top_keywords['total_counts'] / total_all_counts * 100).round(2)
 
-                # Check if 'frequency' column exists before applying subset styling
+                # Check if data exists before applying styling
                 try:
-                    if 'frequency' in top_keywords.columns:
-                        # Apply styling with proper error handling
-                        styled_keywords = top_keywords.style.background_gradient(
-                            subset=['frequency'], 
-                            cmap='Blues', 
-                            alpha=0.3
-                        ).format({
-                            'total_counts': '{:,.0f}',
-                            'total_clicks': '{:,.0f}',
-                            'total_conversions': '{:,.0f}',
-                            'avg_ctr': '{:.2f}%',
-                            'avg_cr': '{:.2f}%'
-                        }).set_properties(**{
-                            'text-align': 'center',
-                            'font-size': '13px'
-                        })
-                        
-                        # Create display version with renamed columns
+                    if not top_keywords.empty:
+                        # Create display version with renamed columns and proper formatting
                         display_df = top_keywords.copy()
                         display_df = display_df.rename(columns={
                             'keyword': 'Keyword',
-                            'frequency': 'Frequency',
                             'total_counts': 'Total Counts',
+                            'share_pct': 'Share %',
                             'total_clicks': 'Total Clicks',
                             'total_conversions': 'Conversions',
                             'avg_ctr': 'Avg CTR',
                             'avg_cr': 'Avg CR'
                         })
                         
-                        # Apply the same styling to renamed dataframe
+                        # Apply styling with proper formatting
                         styled_display = display_df.style.background_gradient(
-                            subset=['Frequency'], 
+                            subset=['Total Counts'], 
                             cmap='Blues', 
                             alpha=0.3
                         ).format({
                             'Total Counts': '{:,.0f}',
+                            'Share %': '{:.2f}%',
                             'Total Clicks': '{:,.0f}',
                             'Conversions': '{:,.0f}',
                             'Avg CTR': '{:.2f}%',
@@ -1303,36 +1306,25 @@ with tab_search:
                         })
                         
                         st.dataframe(styled_display, use_container_width=True)
+                        
+                        # Download button for keywords
+                        csv_keywords = top_keywords.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download Keywords CSV",
+                            data=csv_keywords,
+                            file_name=f"top_{num_keywords}_keywords.csv",
+                            mime="text/csv",
+                            key="download_keywords"
+                        )
                     
-                    else:
-                        # Fallback: display without gradient styling
-                        display_df = top_keywords.copy()
-                        display_df['total_counts'] = display_df['total_counts'].apply(lambda x: f"{x:,.0f}")
-                        display_df['total_clicks'] = display_df['total_clicks'].apply(lambda x: f"{x:,.0f}")
-                        display_df['total_conversions'] = display_df['total_conversions'].apply(lambda x: f"{x:,.0f}")
-                        display_df['avg_ctr'] = display_df['avg_ctr'].apply(lambda x: f"{x:.2f}%")
-                        display_df['avg_cr'] = display_df['avg_cr'].apply(lambda x: f"{x:.2f}%")
-                        
-                        display_df = display_df.rename(columns={
-                            'keyword': 'Keyword',
-                            'frequency': 'Frequency',
-                            'total_counts': 'Total Counts',
-                            'total_clicks': 'Total Clicks',
-                            'total_conversions': 'Conversions',
-                            'avg_ctr': 'Avg CTR',
-                            'avg_cr': 'Avg CR'
-                        })
-                        
-                        st.dataframe(display_df, use_container_width=True)
-                        
                 except Exception as e:
                     st.error(f"Styling error: {e}")
-                    # Final fallback: simple dataframe display
+                    # Fallback: simple dataframe display
                     simple_df = top_keywords.copy()
                     simple_df = simple_df.rename(columns={
                         'keyword': 'Keyword',
-                        'frequency': 'Frequency',
                         'total_counts': 'Total Counts',
+                        'share_pct': 'Share %',
                         'total_clicks': 'Total Clicks',
                         'total_conversions': 'Conversions',
                         'avg_ctr': 'Avg CTR',
@@ -1479,155 +1471,117 @@ with tab_search:
             st.plotly_chart(fig_lt, use_container_width=True)
     
     with adv_col3:
-        st.markdown("**🔍 Search Intent Analysis**")
-        # Create search intent categories based on keywords
-        intent_mapping = {
-            'buy': ['buy', 'purchase', 'order', 'shop'],
-            'compare': ['vs', 'versus', 'compare', 'difference', 'better'],
-            'info': ['what', 'how', 'why', 'when', 'where'],
-            'brand': ['brand', 'reviews', 'rating', 'best']
-        }
-        
-        def classify_intent(keywords_list):
-            if not isinstance(keywords_list, list):
-                return 'other'
-            keywords_str = ' '.join(keywords_list).lower()
-            for intent, intent_keywords in intent_mapping.items():
-                if any(kw in keywords_str for kw in intent_keywords):
-                    return intent
-            return 'other'
-        
-        queries['search_intent'] = queries['keywords'].apply(classify_intent)
-        intent_analysis = queries.groupby('search_intent').agg({
+        st.markdown("**🔍 Keyword Density Analysis**")
+        # Replace Search Intent Analysis with Keyword Density Analysis
+        density_bins = pd.cut(queries['query_length'], bins=[0, 10, 20, 30, 50, 100], labels=['Very Short', 'Short', 'Medium', 'Long', 'Very Long'])
+        density_analysis = queries.groupby(density_bins).agg({
             'Counts': 'sum',
             'clicks': 'sum',
             'conversions': 'sum'
         }).reset_index()
-        intent_analysis['ctr'] = intent_analysis.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+        density_analysis['ctr'] = density_analysis.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
         
-        if not intent_analysis.empty:
-            fig_intent = px.pie(
-                intent_analysis, 
-                names='search_intent', 
+        if not density_analysis.empty:
+            fig_density = px.pie(
+                density_analysis, 
+                names='query_length', 
                 values='Counts',
-                title='Search Intent Distribution',
+                title='Query Length Distribution',
                 color_discrete_sequence=['#FF5A6E', '#FFB085', '#E6F3FA', '#FF8A7A', '#FFF7E8']
             )
             
-            fig_intent.update_layout(
+            fig_density.update_layout(
                 font=dict(color='#0B486B', family='Segoe UI', size=10),
                 height=300
             )
             
-            st.plotly_chart(fig_intent, use_container_width=True)
+            st.plotly_chart(fig_density, use_container_width=True)
     
     st.markdown("---")
     
-    # Query Performance Insights Table - FIXED VERSION
-    st.subheader("📋 Detailed Query Performance Analysis")
+    # Replace Detailed Query Performance Analysis with Top Queries from Tab 1
+    st.subheader("📋 Top Performing Queries")
     
-    # Create comprehensive query analysis
-    query_analysis = queries.groupby('normalized_query').agg({
-        'Counts': 'sum',
-        'clicks': 'sum', 
-        'conversions': 'sum',
-        'query_length': 'first'
-    }).reset_index()
+    # Number of rows control
+    num_queries = st.selectbox("Select number of queries to display:", 
+                              options=[10, 20, 30, 50, 100], 
+                              value=50, 
+                              key="num_queries")
     
-    query_analysis['ctr'] = query_analysis.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
-    query_analysis['cr'] = query_analysis.apply(lambda r: (r['conversions']/r['clicks']*100) if r['clicks']>0 else 0, axis=1)
-    query_analysis['is_long_tail'] = query_analysis['query_length'] >= 20
-    query_analysis['performance_score'] = (query_analysis['ctr'] * 0.6 + query_analysis['cr'] * 0.4).round(2)
-    
-    # Sort by performance score and get top performers
-    top_performers = query_analysis.sort_values('performance_score', ascending=False).head(20)
-    
-    # Create display version with proper formatting
-    try:
-        # Apply styling to numeric columns only
-        styled_analysis = top_performers.style.background_gradient(
-            subset=['performance_score'], 
-            cmap='RdYlGn', 
-            alpha=0.4
-        ).format({
-            'Counts': '{:,.0f}',
-            'clicks': '{:,.0f}',
-            'conversions': '{:,.0f}',
-            'ctr': '{:.2f}%',
-            'cr': '{:.2f}%',
-            'performance_score': '{:.2f}'
-        }).set_properties(**{
-            'text-align': 'center',
-            'font-size': '12px'
-        })
-        
-        # Create final display dataframe with renamed columns
-        display_analysis = top_performers.copy()
-        display_analysis['is_long_tail'] = display_analysis['is_long_tail'].map({True: '✅', False: '❌'})
-        display_analysis = display_analysis.rename(columns={
-            'normalized_query': 'Search Query',
-            'Counts': 'Total Searches',
-            'clicks': 'Clicks',
-            'conversions': 'Conversions',
-            'ctr': 'CTR',
-            'cr': 'CR',
-            'query_length': 'Length',
-            'is_long_tail': 'Long-tail',
-            'performance_score': 'Score'
-        })
-        
-        # Apply styling to renamed dataframe
-        final_styled = display_analysis[['Search Query', 'Total Searches', 'Clicks', 'Conversions', 'CTR', 'CR', 'Length', 'Long-tail', 'Score']].style.background_gradient(
-            subset=['Score'], 
-            cmap='RdYlGn', 
-            alpha=0.4
-        ).format({
-            'Total Searches': '{:,.0f}',
-            'Clicks': '{:,.0f}',
-            'Conversions': '{:,.0f}',
-            'CTR': '{:.2f}%',
-            'CR': '{:.2f}%',
-            'Score': '{:.2f}'
-        }).set_properties(**{
-            'text-align': 'center',
-            'font-size': '12px'
-        })
-        
-        st.dataframe(final_styled, use_container_width=True)
-        
-    except Exception as e:
-        st.error(f"Styling error in query analysis: {e}")
-        # Fallback: simple formatted dataframe
-        simple_analysis = top_performers.copy()
-        simple_analysis['Counts'] = simple_analysis['Counts'].apply(lambda x: f"{x:,.0f}")
-        simple_analysis['clicks'] = simple_analysis['clicks'].apply(lambda x: f"{x:,.0f}")
-        simple_analysis['conversions'] = simple_analysis['conversions'].apply(lambda x: f"{x:,.0f}")
-        simple_analysis['ctr'] = simple_analysis['ctr'].apply(lambda x: f"{x:.2f}%")
-        simple_analysis['cr'] = simple_analysis['cr'].apply(lambda x: f"{x:.2f}%")
-        simple_analysis['is_long_tail'] = simple_analysis['is_long_tail'].map({True: '✅', False: '❌'})
-        
-        simple_analysis = simple_analysis.rename(columns={
-            'normalized_query': 'Search Query',
-            'Counts': 'Total Searches',
-            'clicks': 'Clicks',
-            'conversions': 'Conversions',
-            'ctr': 'CTR',
-            'cr': 'CR',
-            'query_length': 'Length',
-            'is_long_tail': 'Long-tail',
-            'performance_score': 'Score'
-        })
-        
-        st.dataframe(simple_analysis[['Search Query', 'Total Searches', 'Clicks', 'Conversions', 'CTR', 'CR', 'Length', 'Long-tail', 'Score']], use_container_width=True)
-    
-    # Download functionality
-    csv_analysis = query_analysis.to_csv(index=False)
-    st.download_button(
-        label="📥 Download Query Analysis CSV",
-        data=csv_analysis,
-        file_name="query_performance_analysis.csv",
-        mime="text/csv"
-    )
+    if queries.empty or 'Counts' not in queries.columns or queries['Counts'].isna().all():
+        st.warning("No valid data available for top queries.")
+    else:
+        try:
+            # Group by 'search' and aggregate
+            top_queries = queries.groupby('search').agg({
+                'Counts': 'sum',
+                'clicks': 'sum',
+                'conversions': 'sum'
+            }).reset_index()
+
+            # Calculate total Counts for share percentage
+            total_counts = queries['Counts'].sum()
+
+            # Calculate Conversion Rate based on conversions / Counts if column exists or as fallback
+            if 'Conversion Rate' in queries.columns:
+                top_queries['Conversion Rate'] = pd.to_numeric(queries.groupby('search')['Conversion Rate'].mean(), errors='coerce').fillna(0)
+            else:
+                # Derive Conversion Rate as (conversions / Counts * 100)
+                top_queries['Conversion Rate'] = (top_queries['conversions'] / top_queries['Counts'] * 100).round(2).fillna(0).replace([float('inf'), -float('inf')], 0)
+
+            # Calculate share percentage
+            top_queries['Share %'] = (top_queries['Counts'] / total_counts * 100).round(2)
+
+            # Sort by 'Counts' and get top N
+            top_queries = top_queries.nlargest(num_queries, 'Counts')
+
+            # Rename columns for display and format
+            top_queries = top_queries.rename(columns={
+                'search': 'Query',
+                'Counts': 'Search Counts',
+                'clicks': 'Clicks',
+                'conversions': 'Conversions'
+            })
+
+            # Round up clicks and format Conversion Rate as percentage
+            top_queries['Clicks'] = top_queries['Clicks'].round().astype(int)
+            top_queries['Conversion Rate'] = top_queries['Conversion Rate'].astype(str) + '%' if top_queries['Conversion Rate'].dtype != 'object' else top_queries['Conversion Rate']
+
+            # Format Search Counts with commas
+            top_queries['Search Counts'] = top_queries['Search Counts'].apply(lambda x: f"{x:,.0f}")
+
+            # Reorder columns to place Share % after Search Counts
+            column_order = ['Query', 'Search Counts', 'Share %', 'Clicks', 'Conversions', 'Conversion Rate']
+            top_queries = top_queries[column_order]
+
+            # Center-align all values using Styler
+            styled_top_queries = top_queries.style.set_properties(**{
+                'text-align': 'center',
+                'font-size': '14px'
+            }).format({
+                'Search Counts': '{}',
+                'Share %': '{:.2f}%',
+                'Clicks': '{:,.0f}',
+                'Conversions': '{:,.0f}',
+                'Conversion Rate': '{}'
+            })
+
+            # Display the DataFrame
+            st.dataframe(styled_top_queries, use_container_width=True)
+
+            # Add download button
+            csv = top_queries.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Queries CSV",
+                data=csv,
+                file_name=f"top_{num_queries}_queries.csv",
+                mime="text/csv",
+                key="download_queries"
+            )
+        except KeyError as e:
+            st.error(f"Column error: {e}. Check column names in your data (e.g., 'search', 'Counts', 'clicks', 'conversions', 'Conversion Rate').")
+        except Exception as e:
+            st.error(f"Error processing top queries: {e}")
     
     # Key Insights Box
     st.markdown("---")
@@ -1656,6 +1610,7 @@ with tab_search:
             • Monitor search intent patterns for strategy alignment</p>
         </div>
         """, unsafe_allow_html=True)
+
 
 # ----------------- Brand Tab -----------------
 with tab_brand:
