@@ -1120,8 +1120,8 @@ with tab_search:
     
     # Hero Image for Search Tab
     search_image_options = {
-        "Search Analytics Focus": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=🔍+Search+Query+Intelligence",
-        "Data Visualization": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=📊+Keyword+Performance+Hub",
+        "Search Analytics Focus": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Keyword+Performance+Hub",
+        "Data Visualization": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=Search+Query+Intelligence",
         "Abstract Search": "https://source.unsplash.com/1200x200/?analytics,data",
         "Abstract Gradient": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Lady+Care+Insights",
     }
@@ -1258,9 +1258,9 @@ with tab_search:
                 
                 st.plotly_chart(fig_kw, use_container_width=True)
                 
-                # Top performing keywords table - USING SLIDER INSTEAD OF SELECTBOX
+                # Top performing keywords table - FIXED VERSION with your requested changes
                 st.subheader("🏆 Top Performing Keywords")
-                
+
                 # Use slider instead of selectbox to avoid key conflicts
                 num_keywords = st.slider(
                     "Number of keywords to display:", 
@@ -1270,9 +1270,9 @@ with tab_search:
                     step=5,
                     key="keyword_count_slider_search_tab"
                 )
-                
+
                 top_keywords = kw_perf_df.sort_values('total_counts', ascending=False).head(num_keywords)
-                
+
                 # Calculate total counts for share percentage
                 total_all_counts = queries['Counts'].sum()
                 top_keywords['share_pct'] = (top_keywords['total_counts'] / total_all_counts * 100).round(2)
@@ -1281,6 +1281,11 @@ with tab_search:
                 if not top_keywords.empty:
                     # Create display version with renamed columns and proper formatting
                     display_df = top_keywords.copy()
+                    
+                    # FIXED: Calculate CR as conversions/counts and add Classic CR as conversions/clicks
+                    display_df['classic_cr'] = display_df['avg_cr']  # This was conversions/clicks
+                    display_df['avg_cr'] = (display_df['total_conversions'] / display_df['total_counts'] * 100).round(2).fillna(0)
+                    
                     display_df = display_df.rename(columns={
                         'keyword': 'Keyword',
                         'total_counts': 'Total Counts',
@@ -1288,7 +1293,8 @@ with tab_search:
                         'total_clicks': 'Total Clicks',
                         'total_conversions': 'Conversions',
                         'avg_ctr': 'Avg CTR',
-                        'avg_cr': 'Avg CR'
+                        'avg_cr': 'CR',
+                        'classic_cr': 'Classic CR'
                     })
                     
                     # Format numbers manually
@@ -1297,7 +1303,12 @@ with tab_search:
                     display_df['Total Clicks'] = display_df['Total Clicks'].apply(lambda x: f"{x:,.0f}")
                     display_df['Conversions'] = display_df['Conversions'].apply(lambda x: f"{x:,.0f}")
                     display_df['Avg CTR'] = display_df['Avg CTR'].apply(lambda x: f"{x:.2f}%")
-                    display_df['Avg CR'] = display_df['Avg CR'].apply(lambda x: f"{x:.2f}%")
+                    display_df['CR'] = display_df['CR'].apply(lambda x: f"{x:.2f}%")
+                    display_df['Classic CR'] = display_df['Classic CR'].apply(lambda x: f"{x:.2f}%")
+                    
+                    # FIXED: Reorder columns to place Share % right after Total Counts
+                    column_order = ['Keyword', 'Total Counts', 'Share %', 'Total Clicks', 'Conversions', 'Avg CTR', 'CR', 'Classic CR']
+                    display_df = display_df[column_order]
                     
                     st.dataframe(display_df, use_container_width=True)
                     
@@ -1310,6 +1321,7 @@ with tab_search:
                         mime="text/csv",
                         key="keyword_csv_download_search_tab"
                     )
+
 
     
     with col_right:
@@ -1451,8 +1463,10 @@ with tab_search:
     
     with adv_col3:
         st.markdown("**🔍 Keyword Density Analysis**")
-        # Replace Search Intent Analysis with Keyword Density Analysis
-        density_bins = pd.cut(queries['query_length'], bins=[0, 10, 20, 30, 50, 100], labels=['Very Short', 'Short', 'Medium', 'Long', 'Very Long'])
+        # FIXED: Replace labels with character ranges instead of descriptive names
+        density_bins = pd.cut(queries['query_length'], 
+                            bins=[0, 10, 20, 30, 50, 100], 
+                            labels=['0-10 chars', '11-20 chars', '21-30 chars', '31-50 chars', '51-100 chars'])
         density_analysis = queries.groupby(density_bins).agg({
             'Counts': 'sum',
             'clicks': 'sum',
@@ -1475,6 +1489,7 @@ with tab_search:
             )
             
             st.plotly_chart(fig_density, use_container_width=True)
+
     
     st.markdown("---")
     
@@ -1485,7 +1500,7 @@ with tab_search:
     num_queries = st.slider(
         "Number of queries to display:", 
         min_value=10, 
-        max_value=100, 
+        max_value=300, 
         value=50, 
         step=10,
         key="query_count_slider_search_tab"
