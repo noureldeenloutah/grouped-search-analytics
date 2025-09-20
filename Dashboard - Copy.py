@@ -1125,7 +1125,7 @@ with tab_search:
         "Abstract Search": "https://source.unsplash.com/1200x200/?analytics,data",
         "Abstract Gradient": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Lady+Care+Insights",
     }
-    selected_search_image = st.sidebar.selectbox("Choose Search Tab Hero", options=list(search_image_options.keys()), index=0, key="search_hero")
+    selected_search_image = st.sidebar.selectbox("Choose Search Tab Hero", options=list(search_image_options.keys()), index=0, key="search_hero_image_selector")
     st.image(search_image_options[selected_search_image], use_container_width=True)
     
     # Add error handling and data validation
@@ -1258,14 +1258,18 @@ with tab_search:
                 
                 st.plotly_chart(fig_kw, use_container_width=True)
                 
-                # Top performing keywords table - FIXED VERSION with all requested changes
+                # Top performing keywords table - USING SLIDER INSTEAD OF SELECTBOX
                 st.subheader("🏆 Top Performing Keywords")
                 
-                # Number of rows control - FIXED KEY
-                num_keywords = st.selectbox("Select number of keywords to display:", 
-                                          options=[10, 15, 20, 25, 30, 50], 
-                                          value=15, 
-                                          key="search_tab_num_keywords")
+                # Use slider instead of selectbox to avoid key conflicts
+                num_keywords = st.slider(
+                    "Number of keywords to display:", 
+                    min_value=10, 
+                    max_value=50, 
+                    value=15, 
+                    step=5,
+                    key="keyword_count_slider_search_tab"
+                )
                 
                 top_keywords = kw_perf_df.sort_values('total_counts', ascending=False).head(num_keywords)
                 
@@ -1275,61 +1279,27 @@ with tab_search:
 
                 # Check if data exists before applying styling
                 if not top_keywords.empty:
-                    try:
-                        # Create display version with renamed columns and proper formatting
-                        display_df = top_keywords.copy()
-                        display_df = display_df.rename(columns={
-                            'keyword': 'Keyword',
-                            'total_counts': 'Total Counts',
-                            'share_pct': 'Share %',
-                            'total_clicks': 'Total Clicks',
-                            'total_conversions': 'Conversions',
-                            'avg_ctr': 'Avg CTR',
-                            'avg_cr': 'Avg CR'
-                        })
-                        
-                        # Apply styling with proper formatting
-                        styled_display = display_df.style.background_gradient(
-                            subset=['Total Counts'], 
-                            cmap='Blues', 
-                            alpha=0.3
-                        ).format({
-                            'Total Counts': '{:,.0f}',
-                            'Share %': '{:.2f}%',
-                            'Total Clicks': '{:,.0f}',
-                            'Conversions': '{:,.0f}',
-                            'Avg CTR': '{:.2f}%',
-                            'Avg CR': '{:.2f}%'
-                        }).set_properties(**{
-                            'text-align': 'center',
-                            'font-size': '13px'
-                        })
-                        
-                        st.dataframe(styled_display, use_container_width=True)
-                        
-                    except Exception as e:
-                        st.warning(f"Styling not available, showing simple table: {e}")
-                        # Fallback: simple dataframe display
-                        simple_df = top_keywords.copy()
-                        simple_df = simple_df.rename(columns={
-                            'keyword': 'Keyword',
-                            'total_counts': 'Total Counts',
-                            'share_pct': 'Share %',
-                            'total_clicks': 'Total Clicks',
-                            'total_conversions': 'Conversions',
-                            'avg_ctr': 'Avg CTR',
-                            'avg_cr': 'Avg CR'
-                        })
-                        
-                        # Format numbers manually
-                        simple_df['Total Counts'] = simple_df['Total Counts'].apply(lambda x: f"{x:,.0f}")
-                        simple_df['Share %'] = simple_df['Share %'].apply(lambda x: f"{x:.2f}%")
-                        simple_df['Total Clicks'] = simple_df['Total Clicks'].apply(lambda x: f"{x:,.0f}")
-                        simple_df['Conversions'] = simple_df['Conversions'].apply(lambda x: f"{x:,.0f}")
-                        simple_df['Avg CTR'] = simple_df['Avg CTR'].apply(lambda x: f"{x:.2f}%")
-                        simple_df['Avg CR'] = simple_df['Avg CR'].apply(lambda x: f"{x:.2f}%")
-                        
-                        st.dataframe(simple_df, use_container_width=True)
+                    # Create display version with renamed columns and proper formatting
+                    display_df = top_keywords.copy()
+                    display_df = display_df.rename(columns={
+                        'keyword': 'Keyword',
+                        'total_counts': 'Total Counts',
+                        'share_pct': 'Share %',
+                        'total_clicks': 'Total Clicks',
+                        'total_conversions': 'Conversions',
+                        'avg_ctr': 'Avg CTR',
+                        'avg_cr': 'Avg CR'
+                    })
+                    
+                    # Format numbers manually
+                    display_df['Total Counts'] = display_df['Total Counts'].apply(lambda x: f"{x:,.0f}")
+                    display_df['Share %'] = display_df['Share %'].apply(lambda x: f"{x:.2f}%")
+                    display_df['Total Clicks'] = display_df['Total Clicks'].apply(lambda x: f"{x:,.0f}")
+                    display_df['Conversions'] = display_df['Conversions'].apply(lambda x: f"{x:,.0f}")
+                    display_df['Avg CTR'] = display_df['Avg CTR'].apply(lambda x: f"{x:.2f}%")
+                    display_df['Avg CR'] = display_df['Avg CR'].apply(lambda x: f"{x:.2f}%")
+                    
+                    st.dataframe(display_df, use_container_width=True)
                     
                     # Download button for keywords
                     csv_keywords = top_keywords.to_csv(index=False)
@@ -1338,7 +1308,7 @@ with tab_search:
                         data=csv_keywords,
                         file_name=f"top_{num_keywords}_keywords.csv",
                         mime="text/csv",
-                        key="search_tab_download_keywords"
+                        key="keyword_csv_download_search_tab"
                     )
 
     
@@ -1511,11 +1481,15 @@ with tab_search:
     # Replace Detailed Query Performance Analysis with Top Queries from Tab 1
     st.subheader("📋 Top Performing Queries")
     
-    # Number of rows control - FIXED KEY
-    num_queries = st.selectbox("Select number of queries to display:", 
-                              options=[10, 20, 30, 50, 100], 
-                              value=50, 
-                              key="search_tab_num_queries")
+    # Use slider instead of selectbox for queries too
+    num_queries = st.slider(
+        "Number of queries to display:", 
+        min_value=10, 
+        max_value=100, 
+        value=50, 
+        step=10,
+        key="query_count_slider_search_tab"
+    )
     
     if queries.empty or 'Counts' not in queries.columns or queries['Counts'].isna().all():
         st.warning("No valid data available for top queries.")
@@ -1567,14 +1541,14 @@ with tab_search:
             # Display the DataFrame with simple formatting
             st.dataframe(top_queries, use_container_width=True)
 
-            # Add download button - FIXED KEY
+            # Add download button
             csv = top_queries.to_csv(index=False)
             st.download_button(
                 label="📥 Download Queries CSV",
                 data=csv,
                 file_name=f"top_{num_queries}_queries.csv",
                 mime="text/csv",
-                key="search_tab_download_queries"
+                key="query_csv_download_search_tab"
             )
         except KeyError as e:
             st.error(f"Column error: {e}. Check column names in your data (e.g., 'search', 'Counts', 'clicks', 'conversions', 'Conversion Rate').")
@@ -1608,7 +1582,6 @@ with tab_search:
             • Monitor search intent patterns for strategy alignment</p>
         </div>
         """, unsafe_allow_html=True)
-
 
 # ----------------- Brand Tab -----------------
 with tab_brand:
