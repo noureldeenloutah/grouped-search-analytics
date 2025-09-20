@@ -1598,41 +1598,502 @@ with tab_search:
         </div>
         """, unsafe_allow_html=True)
 
-# ----------------- Brand Tab -----------------
+# ----------------- Brand Tab (Enhanced) -----------------
 with tab_brand:
-    st.header("🏷 Brand Insights")
-    st.markdown("Explore brand demand and performance metrics. 🚀")
-
-    if brand_summary is not None:
-        st.subheader("📋 Brand Summary (Sheet)")
-        st.dataframe(brand_summary, use_container_width=True)
-
-    if 'brand' in queries.columns and queries['brand'].notna().any():
-        bs = queries.groupby('brand').agg(Counts=('Counts','sum'), clicks=('clicks','sum'), conversions=('conversions','sum')).reset_index()
-        bs['ctr'] = bs.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
-        bs['cr'] = bs.apply(lambda r: (r['conversions']/r['clicks']*100) if r['clicks']>0 else 0, axis=1)
-        st.plotly_chart(px.bar(bs.sort_values('Counts', ascending=False).head(20), x='brand', y='Counts', title='Top Brands by Counts', color_discrete_sequence=px.colors.qualitative.D3), use_container_width=True)
-        st.plotly_chart(px.scatter(bs, x='Counts', y='ctr', size='conversions', color='brand', title='Brand: Counts vs CTR (Size=Conversions)', color_discrete_sequence=px.colors.qualitative.Plotly), use_container_width=True)
-
-        st.subheader("🔑 Top Keywords per Brand")
-        rows = []
-        for brand, grp in queries.groupby('brand'):
-            kw = Counter([w for sub in grp['keywords'] for w in sub])
-            for k,cnt in kw.most_common(8):
-                rows.append({'brand':brand,'keyword':k,'count':cnt})
-        df_bkw = pd.DataFrame(rows)
-        if not df_bkw.empty:
-            pivot_bkw = df_bkw.pivot_table(index='brand', columns='keyword', values='count', fill_value=0)
-            if AGGRID_OK:
-                gb = GridOptionsBuilder.from_dataframe(pivot_bkw.reset_index())
-                gb.configure_grid_options(enableRangeSelection=True, pagination=True)
-                AgGrid(pivot_bkw.reset_index(), gridOptions=gb.build(), height=400)
+    st.header("🏷 Brand Intelligence Hub")
+    st.markdown("Comprehensive brand performance analysis with competitive insights and strategic recommendations. 🚀")
+    
+    # Hero Image for Brand Tab
+    brand_image_options = {
+        "Brand Analytics Focus": "https://placehold.co/1200x200/FF5A6E/FFFFFF?text=🏷+Brand+Performance+Intelligence",
+        "Competitive Analysis": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=📊+Brand+Market+Position",
+        "Abstract Brand": "https://source.unsplash.com/1200x200/?brand,marketing",
+        "Abstract Gradient": "https://placehold.co/1200x200/E6F3FA/FF5A6E?text=Lady+Care+Brand+Insights",
+    }
+    selected_brand_image = st.sidebar.selectbox("Choose Brand Tab Hero", options=list(brand_image_options.keys()), index=0, key="brand_hero_image_selector")
+    st.image(brand_image_options[selected_brand_image], use_container_width=True)
+    
+    # Check if brand data is available
+    has_brand_data = 'brand' in queries.columns and queries['brand'].notna().any()
+    has_brand_summary = brand_summary is not None and not brand_summary.empty
+    
+    if not has_brand_data and not has_brand_summary:
+        st.error("❌ No brand data available. Please ensure your dataset contains brand information.")
+        st.stop()
+    
+    # Brand Performance Metrics Row
+    if has_brand_data:
+        brand_queries = queries[queries['brand'].notna()]
+        total_brands = brand_queries['brand'].nunique()
+        top_brand = brand_queries.groupby('brand')['Counts'].sum().idxmax()
+        brand_coverage = (len(brand_queries) / len(queries) * 100)
+        avg_brand_performance = brand_queries.groupby('brand')['Counts'].sum().mean()
+        
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        with col_m1:
+            st.markdown(f"""
+            <div class='mini-metric'>
+                <span class='icon'>🏷</span>
+                <div class='value'>{total_brands:,}</div>
+                <div class='label'>Total Brands</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_m2:
+            st.markdown(f"""
+            <div class='mini-metric'>
+                <span class='icon'>👑</span>
+                <div class='value'>{top_brand[:15]}...</div>
+                <div class='label'>Top Brand</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_m3:
+            st.markdown(f"""
+            <div class='mini-metric'>
+                <span class='icon'>📊</span>
+                <div class='value'>{brand_coverage:.1f}%</div>
+                <div class='label'>Brand Coverage</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_m4:
+            st.markdown(f"""
+            <div class='mini-metric'>
+                <span class='icon'>⭐</span>
+                <div class='value'>{avg_brand_performance:,.0f}</div>
+                <div class='label'>Avg Brand Traffic</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Main Brand Analysis Layout
+    col_left, col_right = st.columns([3, 2])
+    
+    with col_left:
+        if has_brand_data:
+            # Enhanced Brand Performance Analysis
+            st.subheader("📈 Brand Performance Matrix")
+            
+            # Calculate comprehensive brand metrics
+            bs = queries[queries['brand'].notna()].groupby('brand').agg({
+                'Counts': 'sum',
+                'clicks': 'sum', 
+                'conversions': 'sum'
+            }).reset_index()
+            
+            # Calculate performance metrics
+            bs['ctr'] = bs.apply(lambda r: (r['clicks']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)
+            bs['cr'] = bs.apply(lambda r: (r['conversions']/r['Counts']*100) if r['Counts']>0 else 0, axis=1)  # Fixed: CR as conversions/counts
+            bs['classic_cr'] = bs.apply(lambda r: (r['conversions']/r['clicks']*100) if r['clicks']>0 else 0, axis=1)
+            
+            # Calculate market share
+            total_brand_counts = bs['Counts'].sum()
+            bs['market_share'] = (bs['Counts'] / total_brand_counts * 100).round(2)
+            
+            # Enhanced scatter plot for brand performance
+            fig_brand_perf = px.scatter(
+                bs.head(30), 
+                x='Counts', 
+                y='ctr',
+                size='clicks',
+                color='cr',
+                hover_name='brand',
+                title='<b style="color:#FF5A6E; font-size:18px;">Brand Performance Matrix: Traffic vs CTR 🎯</b>',
+                labels={'Counts': 'Total Traffic', 'ctr': 'Click-Through Rate (%)', 'cr': 'Conversion Rate (%)'},
+                color_continuous_scale=['#E6F3FA', '#FFB085', '#FF5A6E'],
+                template='plotly_white'
+            )
+            
+            fig_brand_perf.update_traces(
+                hovertemplate='<b>%{hovertext}</b><br>' +
+                             'Total Traffic: %{x:,.0f}<br>' +
+                             'CTR: %{y:.2f}%<br>' +
+                             'Total Clicks: %{marker.size:,.0f}<br>' +
+                             'Conversion Rate: %{marker.color:.2f}%<extra></extra>'
+            )
+            
+            fig_brand_perf.update_layout(
+                plot_bgcolor='rgba(255,255,255,0.95)',
+                paper_bgcolor='rgba(255,247,232,0.8)',
+                font=dict(color='#0B486B', family='Segoe UI'),
+                title_x=0,
+                xaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
+                yaxis=dict(showgrid=True, gridcolor='#E6F3FA', linecolor='#FF5A6E', linewidth=2),
+                annotations=[
+                    dict(
+                        x=0.95, y=0.95, xref='paper', yref='paper',
+                        text='💡 Size = Total Clicks | Color = Conversion Rate',
+                        showarrow=False,
+                        font=dict(size=11, color='#0B486B'),
+                        align='right'
+                    )
+                ]
+            )
+            
+            st.plotly_chart(fig_brand_perf, use_container_width=True)
+            
+            # Top Brands Performance Table
+            st.subheader("🏆 Top Brand Performance")
+            
+            num_brands = st.slider(
+                "Number of brands to display:", 
+                min_value=10, 
+                max_value=50, 
+                value=20, 
+                step=5,
+                key="brand_count_slider"
+            )
+            
+            top_brands = bs.sort_values('Counts', ascending=False).head(num_brands)
+            
+            # Create display version
+            display_brands = top_brands.copy()
+            display_brands = display_brands.rename(columns={
+                'brand': 'Brand',
+                'Counts': 'Total Traffic',
+                'market_share': 'Market Share %',
+                'clicks': 'Total Clicks',
+                'conversions': 'Conversions',
+                'ctr': 'CTR',
+                'cr': 'CR',
+                'classic_cr': 'Classic CR'
+            })
+            
+            # Format numbers
+            display_brands['Total Traffic'] = display_brands['Total Traffic'].apply(lambda x: f"{x:,.0f}")
+            display_brands['Market Share %'] = display_brands['Market Share %'].apply(lambda x: f"{x:.2f}%")
+            display_brands['Total Clicks'] = display_brands['Total Clicks'].apply(lambda x: f"{x:,.0f}")
+            display_brands['Conversions'] = display_brands['Conversions'].apply(lambda x: f"{x:,.0f}")
+            display_brands['CTR'] = display_brands['CTR'].apply(lambda x: f"{x:.2f}%")
+            display_brands['CR'] = display_brands['CR'].apply(lambda x: f"{x:.2f}%")
+            display_brands['Classic CR'] = display_brands['Classic CR'].apply(lambda x: f"{x:.2f}%")
+            
+            # Reorder columns
+            column_order = ['Brand', 'Total Traffic', 'Market Share %', 'Total Clicks', 'Conversions', 'CTR', 'CR', 'Classic CR']
+            display_brands = display_brands[column_order]
+            
+            st.dataframe(display_brands, use_container_width=True)
+            
+            # Download button
+            csv_brands = top_brands.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Brands CSV",
+                data=csv_brands,
+                file_name=f"top_{num_brands}_brands.csv",
+                mime="text/csv",
+                key="brand_csv_download"
+            )
+        
+        # Brand Summary Sheet (if available)
+        if has_brand_summary:
+            st.subheader("📋 Brand Summary Data")
+            
+            # Enhanced brand summary display
+            if isinstance(brand_summary, pd.DataFrame) and not brand_summary.empty:
+                # Add formatting if numeric columns exist
+                summary_display = brand_summary.copy()
+                
+                # Try to format numeric columns
+                for col in summary_display.columns:
+                    if summary_display[col].dtype in ['int64', 'float64']:
+                        if 'rate' in col.lower() or 'percentage' in col.lower() or '%' in col:
+                            summary_display[col] = summary_display[col].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A")
+                        elif summary_display[col].max() > 1000:
+                            summary_display[col] = summary_display[col].apply(lambda x: f"{x:,.0f}" if pd.notna(x) else "N/A")
+                
+                st.dataframe(summary_display, use_container_width=True)
+                
+                # Download button for brand summary
+                csv_summary = brand_summary.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Brand Summary CSV",
+                    data=csv_summary,
+                    file_name="brand_summary.csv",
+                    mime="text/csv",
+                    key="brand_summary_csv_download"
+                )
             else:
-                st.dataframe(pivot_bkw, use_container_width=True)
+                st.dataframe(brand_summary, use_container_width=True)
+    
+    with col_right:
+        if has_brand_data:
+            # Brand Market Share Pie Chart
+            st.subheader("📊 Brand Market Share")
+            
+            top_brands_pie = bs.nlargest(10, 'Counts')
+            others_share = bs.nsmallest(len(bs)-10, 'Counts')['Counts'].sum()
+            
+            if others_share > 0:
+                others_row = pd.DataFrame({'brand': ['Others'], 'Counts': [others_share]})
+                pie_data = pd.concat([top_brands_pie[['brand', 'Counts']], others_row], ignore_index=True)
+            else:
+                pie_data = top_brands_pie[['brand', 'Counts']]
+            
+            fig_pie = px.pie(
+                pie_data, 
+                names='brand', 
+                values='Counts',
+                title='<b style="color:#FF5A6E;">Market Share Distribution</b>',
+                color_discrete_sequence=['#FF5A6E', '#FFB085', '#E6F3FA', '#FF8A7A', '#FFF7E8', '#B8E6B8', '#87CEEB', '#DDA0DD', '#F0E68C', '#FFB6C1', '#D3D3D3']
+            )
+            
+            fig_pie.update_layout(
+                font=dict(color='#0B486B', family='Segoe UI'),
+                paper_bgcolor='rgba(255,247,232,0.8)'
+            )
+            
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+            # Brand Performance Categories
+            st.subheader("🎯 Brand Performance Categories")
+            
+            # Categorize brands based on performance
+            bs['performance_category'] = pd.cut(
+                bs['ctr'], 
+                bins=[0, 2, 5, 10, float('inf')], 
+                labels=['Low (0-2%)', 'Medium (2-5%)', 'High (5-10%)', 'Excellent (>10%)']
+            )
+            
+            category_counts = bs['performance_category'].value_counts().reset_index()
+            category_counts.columns = ['Category', 'Count']
+            
+            fig_cat = px.bar(
+                category_counts, 
+                x='Category', 
+                y='Count',
+                title='<b style="color:#FF5A6E;">CTR Performance Distribution</b>',
+                color='Count',
+                color_continuous_scale=['#E6F3FA', '#FF5A6E'],
+                text='Count'
+            )
+            
+            fig_cat.update_traces(
+                texttemplate='%{text}',
+                textposition='outside'
+            )
+            
+            fig_cat.update_layout(
+                plot_bgcolor='rgba(255,255,255,0.95)',
+                paper_bgcolor='rgba(255,247,232,0.8)',
+                font=dict(color='#0B486B', family='Segoe UI'),
+                xaxis=dict(showgrid=True, gridcolor='#E6F3FA'),
+                yaxis=dict(showgrid=True, gridcolor='#E6F3FA')
+            )
+            
+            st.plotly_chart(fig_cat, use_container_width=True)
+            
+            # Brand Trend Analysis (if we have date data)
+            if 'date' in queries.columns:
+                st.subheader("📈 Brand Trend Analysis")
+                
+                # Get top 5 brands for trend analysis
+                top_5_brands = bs.nlargest(5, 'Counts')['brand'].tolist()
+                trend_data = queries[queries['brand'].isin(top_5_brands)]
+                
+                if not trend_data.empty:
+                    try:
+                        trend_data['date'] = pd.to_datetime(trend_data['date'])
+                        daily_brand_trends = trend_data.groupby(['date', 'brand'])['Counts'].sum().reset_index()
+                        
+                        fig_trend = px.line(
+                            daily_brand_trends, 
+                            x='date', 
+                            y='Counts', 
+                            color='brand',
+                            title='<b style="color:#FF5A6E;">Top 5 Brands Trend</b>',
+                            color_discrete_sequence=['#FF5A6E', '#FFB085', '#E6F3FA', '#FF8A7A', '#B8E6B8']
+                        )
+                        
+                        fig_trend.update_layout(
+                            plot_bgcolor='rgba(255,255,255,0.95)',
+                            paper_bgcolor='rgba(255,247,232,0.8)',
+                            font=dict(color='#0B486B', family='Segoe UI'),
+                            xaxis=dict(showgrid=True, gridcolor='#E6F3FA'),
+                            yaxis=dict(showgrid=True, gridcolor='#E6F3FA')
+                        )
+                        
+                        st.plotly_chart(fig_trend, use_container_width=True)
+                    except:
+                        st.info("Date format not suitable for trend analysis")
+    
+    st.markdown("---")
+    
+    # Enhanced Brand-Keyword Analysis
+    if has_brand_data:
+        st.subheader("🔑 Brand-Keyword Intelligence Matrix")
+        
+        # Create comprehensive brand-keyword analysis
+        brand_keyword_data = []
+        
+        for brand, grp in queries[queries['brand'].notna()].groupby('brand'):
+            # Get all keywords for this brand
+            all_keywords = []
+            for keywords_list in grp['keywords'].dropna():
+                if isinstance(keywords_list, list):
+                    all_keywords.extend(keywords_list)
+                else:
+                    # Handle string representation of list
+                    try:
+                        if isinstance(keywords_list, str) and keywords_list.startswith('['):
+                            keywords_list = eval(keywords_list)
+                            all_keywords.extend(keywords_list)
+                    except:
+                        continue
+            
+            # Count keyword frequencies
+            keyword_counts = Counter(all_keywords)
+            
+            # Get brand performance metrics
+            brand_counts = grp['Counts'].sum()
+            brand_clicks = grp['clicks'].sum()
+            brand_conversions = grp['conversions'].sum()
+            brand_ctr = (brand_clicks / brand_counts * 100) if brand_counts > 0 else 0
+            brand_cr = (brand_conversions / brand_counts * 100) if brand_counts > 0 else 0
+            
+            # Add top keywords for this brand
+            for keyword, count in keyword_counts.most_common(10):
+                brand_keyword_data.append({
+                    'brand': brand,
+                    'keyword': keyword,
+                    'keyword_frequency': count,
+                    'brand_total_counts': brand_counts,
+                    'brand_ctr': brand_ctr,
+                    'brand_cr': brand_cr,
+                    'keyword_share': (count / sum(keyword_counts.values()) * 100) if keyword_counts else 0
+                })
+        
+        if brand_keyword_data:
+            df_brand_keywords = pd.DataFrame(brand_keyword_data)
+            
+            # Create pivot table for better visualization
+            pivot_keywords = df_brand_keywords.pivot_table(
+                index='brand', 
+                columns='keyword', 
+                values='keyword_frequency', 
+                fill_value=0
+            )
+            
+            # Display options
+            display_option = st.radio(
+                "Choose display format:",
+                ["📊 Interactive Heatmap", "📋 Detailed Table", "🔄 Pivot Table"],
+                key="brand_keyword_display_option"
+            )
+            
+            if display_option == "📊 Interactive Heatmap" and len(pivot_keywords.columns) > 0:
+                # Create heatmap of top brands and keywords
+                top_brands_heatmap = pivot_keywords.head(15)  # Top 15 brands
+                top_keywords_cols = top_brands_heatmap.sum().nlargest(20).index  # Top 20 keywords
+                heatmap_data = top_brands_heatmap[top_keywords_cols]
+                
+                fig_heatmap = px.imshow(
+                    heatmap_data.values,
+                    labels=dict(x="Keywords", y="Brands", color="Frequency"),
+                    x=heatmap_data.columns,
+                    y=heatmap_data.index,
+                    color_continuous_scale=['#E6F3FA', '#FFB085', '#FF5A6E'],
+                    title='<b style="color:#FF5A6E;">Brand-Keyword Frequency Heatmap</b>'
+                )
+                
+                fig_heatmap.update_layout(
+                    font=dict(color='#0B486B', family='Segoe UI'),
+                    paper_bgcolor='rgba(255,247,232,0.8)',
+                    xaxis=dict(tickangle=45)
+                )
+                
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+                
+            elif display_option == "📋 Detailed Table":
+                # Show detailed brand-keyword table
+                num_brand_keywords = st.slider(
+                    "Number of brand-keyword combinations to display:", 
+                    min_value=20, 
+                    max_value=200, 
+                    value=50, 
+                    step=10,
+                    key="brand_keyword_count_slider"
+                )
+                
+                display_bk = df_brand_keywords.nlargest(num_brand_keywords, 'keyword_frequency').copy()
+                
+                # Format the display
+                display_bk = display_bk.rename(columns={
+                    'brand': 'Brand',
+                    'keyword': 'Keyword',
+                    'keyword_frequency': 'Frequency',
+                    'brand_total_counts': 'Brand Traffic',
+                    'brand_ctr': 'Brand CTR',
+                    'brand_cr': 'Brand CR',
+                    'keyword_share': 'Keyword Share %'
+                })
+                
+                # Format numbers
+                display_bk['Brand Traffic'] = display_bk['Brand Traffic'].apply(lambda x: f"{x:,.0f}")
+                display_bk['Brand CTR'] = display_bk['Brand CTR'].apply(lambda x: f"{x:.2f}%")
+                display_bk['Brand CR'] = display_bk['Brand CR'].apply(lambda x: f"{x:.2f}%")
+                display_bk['Keyword Share %'] = display_bk['Keyword Share %'].apply(lambda x: f"{x:.2f}%")
+                
+                st.dataframe(display_bk, use_container_width=True)
+                
+                # Download button
+                csv_bk = df_brand_keywords.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Brand-Keywords CSV",
+                    data=csv_bk,
+                    file_name="brand_keywords_analysis.csv",
+                    mime="text/csv",
+                    key="brand_keywords_csv_download"
+                )
+                
+            else:  # Pivot Table
+                if AGGRID_OK:
+                    gb = GridOptionsBuilder.from_dataframe(pivot_keywords.reset_index())
+                    gb.configure_grid_options(enableRangeSelection=True, pagination=True)
+                    AgGrid(pivot_keywords.reset_index(), gridOptions=gb.build(), height=400)
+                else:
+                    st.dataframe(pivot_keywords, use_container_width=True)
         else:
-            st.info("Not enough keyword data per brand.")
-    else:
-        st.info("Brand column not available in the dataset.")
+            st.info("Not enough keyword data per brand for analysis.")
+    
+    # Key Insights and Recommendations
+    st.markdown("---")
+    col_insight1, col_insight2 = st.columns(2)
+    
+    with col_insight1:
+        if has_brand_data:
+            top_brand_share = bs.iloc[0]['market_share'] if not bs.empty else 0
+            high_performers = len(bs[bs['ctr'] > 5]) if not bs.empty else 0
+            
+            st.markdown(f"""
+            <div class='insight-box'>
+                <h4>🎯 Brand Insights</h4>
+                <p>• Top brand captures {top_brand_share:.1f}% market share<br>
+                • {high_performers} brands have CTR > 5%<br>
+                • {total_brands} brands actively competing</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class='insight-box'>
+                <h4>🎯 Brand Insights</h4>
+                <p>• Brand data analysis available in summary sheet<br>
+                • Consider adding brand classification to queries<br>
+                • Monitor competitive brand performance</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col_insight2:
+        st.markdown("""
+        <div class='insight-box'>
+            <h4>💡 Strategic Recommendations</h4>
+            <p>• Focus on high-CTR brand keywords for optimization<br>
+            • Analyze competitor brand strategies<br>
+            • Develop brand-specific content strategies</p>
+        </div>
+        """, unsafe_allow_html=True)
+
 
 # ----------------- Category Tab -----------------
 with tab_category:
